@@ -1,0 +1,28 @@
+{
+  "name": "smartstudy-mvp",
+  "version": "1.0.0",
+  "description": "AI Smart Study App - Complete MVP for VC pitch",
+  "scripts": {
+    "setup": "bash SETUP.sh",
+    "install-all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && npm start",
+    "build": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "education",
+    "study",
+    "quizzes",
+    "flashcards",
+    "ai",
+    "edtech",
+    "mvp"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.1"
+  }
+}
