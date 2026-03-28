@@ -6,6 +6,14 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+// Debug: Check environment variables
+console.log('=== ENVIRONMENT DEBUG ===');
+console.log('MONGODB_URI:', process.env.MONGODB_URI ? '✓ SET' : '✗ NOT SET');
+console.log('MONGODB_URI (first 50 chars):', process.env.MONGODB_URI?.substring(0, 50) + '...' || 'none');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? '✓ SET' : '✗ NOT SET');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'not set');
+console.log('========================');
+
 const app = express();
 
 // Middleware
