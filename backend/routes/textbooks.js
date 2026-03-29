@@ -5,8 +5,16 @@ const pdfParse = require('pdf-parse');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
 const jwt = require('jsonwebtoken');
+const cloudinary = require('cloudinary').v2;
 
-// Configure multer for file uploads - use memory storage (no disk writes)
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Configure multer for file uploads - use memory storage
 const storage = multer.memoryStorage();
 
 const upload = multer({
@@ -18,7 +26,7 @@ const upload = multer({
       cb(new Error('Only PDF files are allowed'), false);
     }
   },
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 300 * 1024 * 1024 }, // 300MB limit
 });
 
 // Middleware to protect routes
@@ -37,8 +45,19 @@ const authenticate = async (req, res, next) => {
   }
 };
 
+// Handle multer errors (file too large, etc.)
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'File is too large. Maximum size is 50MB.' });
+    }
+    return res.status(400).json({ message: err.message });
+  }
+  next(err);
+};
+
 // Upload textbook
-router.post('/upload', authenticate, upload.single('file'), async (req, res) => {
+router.post('/upload', authenticate, upload.single('file'), handleMulterError, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -59,11 +78,33 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res) => 
       return res.status(400).json({ message: 'Failed to parse PDF. The file may be corrupted or image-based.' });
     }
 
+    // Upload PDF to Cloudinary
+    let filePath;
+    try {
+      const uploadResult = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'raw',
+            folder: 'smartstudy/textbooks',
+            public_id: Date.now() + '-' + req.file.originalname.replace(/\.[^/.]+$/, ''),
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        ).end(req.file.buffer);
+      });
+      filePath = uploadResult.secure_url;
+    } catch (cloudErr) {
+      console.error('Cloudinary upload error:', cloudErr);
+      return res.status(500).json({ message: 'Failed to upload file to cloud storage' });
+    }
+
     const textbook = new Textbook({
       userId: req.userId,
       title,
       filename: req.file.originalname,
-      filePath: null, // Not storing PDF on disk
+      filePath, // Cloudinary URL
       extractedText,
     });
 
@@ -76,6 +117,7 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res) => 
         title: textbook.title,
         filename: textbook.filename,
         textLength: extractedText.length,
+        filePath,
       },
     });
   } catch (err) {
