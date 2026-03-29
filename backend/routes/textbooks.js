@@ -91,23 +91,40 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
     console.log(`Processing upload: ${req.file.originalname} (${(req.file.size / (1024 * 1024)).toFixed(2)}MB)`);
     const tempFilePath = req.file.path;
 
-    // Extract text from PDF (using file path to avoid memory issues)
+    // Extract text from PDF (using file path)
     let extractedText;
     try {
       console.log('Starting PDF text extraction...');
-      const data = await pdfParse(fs.createReadStream(tempFilePath));
+      const data = await pdfParse(tempFilePath);
       extractedText = data.text;
       console.log(`PDF text extraction successful for ${req.file.originalname}:`, {
         textLength: extractedText.length,
         preview: extractedText.substring(0, 200) + '...'
       });
     } catch (pdfErr) {
-      console.error('PDF parse error:', pdfErr);
-      // Clean up temp file before returning
-      fs.unlink(tempFilePath, () => {});
-      return res.status(400).json({
-        message: 'Failed to parse PDF. The file may be corrupted, password-protected, or image-based with no selectable text.'
-      });
+      console.error('PDF parse error (first attempt):', pdfErr);
+
+      // Fallback: try reading the file into buffer
+      try {
+        console.log('Retrying with buffer method...');
+        const fileBuffer = fs.readFileSync(tempFilePath);
+        const data = await pdfParse(fileBuffer);
+        extractedText = data.text;
+        console.log(`PDF text extraction successful (fallback) for ${req.file.originalname}:`, {
+          textLength: extractedText.length,
+          preview: extractedText.substring(0, 200) + '...'
+        });
+      } catch (fallbackErr) {
+        console.error('PDF parse error (fallback):', fallbackErr);
+        // Clean up temp file before returning
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlink(tempFilePath, () => {});
+        }
+        return res.status(400).json({
+          message: 'Failed to parse PDF. The file may be corrupted, password-protected, or image-based with no selectable text.',
+          error: process.env.NODE_ENV === 'development' ? fallbackErr.message : undefined
+        });
+      }
     } finally {
       // Clean up temp file after extraction
       if (fs.existsSync(tempFilePath)) {
