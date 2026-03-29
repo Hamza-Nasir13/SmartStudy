@@ -85,7 +85,7 @@ function generateQuizFromText(text, title, topic = '') {
 // Generate quiz from textbook
 router.post('/generate', authenticate, [
   body('textbookId').optional().isMongoId(),
-  body('text').optional().notEmpty(),
+  body('text').if(body('textbookId').optional().isEmpty()).notEmpty().withMessage('Either textbookId or text is required'),
   body('title').notEmpty().trim(),
   body('topic').optional().trim(),
 ], async (req, res) => {
@@ -95,8 +95,21 @@ router.post('/generate', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    let text = req.body.text;
-    let textbookId = req.body.textbookId;
+    const { textbookId, text: directText, title, topic } = req.body;
+
+    // Check that at least one source is provided
+    if (!textbookId && !directText) {
+      return res.status(400).json({
+        errors: [{
+          msg: 'Either textbookId or text must be provided',
+          param: 'textbookId',
+          location: 'body'
+        }]
+      });
+    }
+
+    let text = directText;
+    let finalTextbookId = textbookId;
 
     // If textbookId provided, fetch textbook text
     if (textbookId) {
@@ -110,12 +123,13 @@ router.post('/generate', authenticate, [
       }
 
       text = textbook.extractedText;
-      textbookId = textbook._id;
+      finalTextbookId = textbook._id;
     }
 
     if (!text || text.length < 50) {
       console.error('Insufficient text content for quiz generation:', {
-        textbookId: textbookId,
+        textbookId: finalTextbookId,
+        source: textbookId ? 'textbook' : 'direct text',
         textLength: text?.length || 0,
         textPreview: text?.substring(0, 200) || 'none'
       });
@@ -125,7 +139,7 @@ router.post('/generate', authenticate, [
     }
 
     console.log('Generating quiz from text:', {
-      textbookId: textbookId,
+      textbookId: finalTextbookId,
       textLength: text.length,
       title: req.body.title,
       topic: req.body.topic
@@ -135,7 +149,7 @@ router.post('/generate', authenticate, [
 
     const quiz = new Quiz({
       userId: req.userId,
-      textbookId: textbookId || null,
+      textbookId: finalTextbookId || null,
       title: quizData.title,
       questions: quizData.questions,
       topic: quizData.topic,
