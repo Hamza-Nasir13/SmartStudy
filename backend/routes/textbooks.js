@@ -200,7 +200,8 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
 
     await textbook.save();
 
-    res.status(201).json({
+    // Send success response and RETURN to prevent further execution
+    return res.status(201).json({
       message: 'Textbook uploaded successfully',
       textbook: {
         id: textbook._id,
@@ -212,6 +213,18 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
     });
   } catch (err) {
     console.error('Upload error:', err);
+
+    // Only send error response if headers haven't been sent yet
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: 'Error processing file',
+        error: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      });
+    } else {
+      // Headers already sent, cannot respond to client
+      console.error('Cannot send error response - headers already sent');
+    }
     res.status(500).json({
       message: 'Error processing file',
       error: err.message,
