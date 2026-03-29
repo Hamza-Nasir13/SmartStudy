@@ -1,27 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const Textbook = require('../models/Textbook');
-const fs = require('fs');
-const path = require('path');
 const pdfParse = require('pdf-parse');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
 const jwt = require('jsonwebtoken');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
-  },
-});
+// Configure multer for file uploads - use memory storage (no disk writes)
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -63,16 +49,15 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res) => 
       return res.status(400).json({ message: 'Title is required' });
     }
 
-    // Extract text from PDF
-    const dataBuffer = fs.readFileSync(req.file.path);
-    const data = await pdfParse(dataBuffer);
+    // Extract text from PDF (using memory buffer)
+    const data = await pdfParse(req.file.buffer);
     const extractedText = data.text;
 
     const textbook = new Textbook({
       userId: req.userId,
       title,
       filename: req.file.originalname,
-      filePath: req.file.path,
+      filePath: null, // Not storing PDF on disk
       extractedText,
     });
 
