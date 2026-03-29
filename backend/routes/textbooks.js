@@ -50,8 +50,14 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res) => 
     }
 
     // Extract text from PDF (using memory buffer)
-    const data = await pdfParse(req.file.buffer);
-    const extractedText = data.text;
+    let extractedText;
+    try {
+      const data = await pdfParse(req.file.buffer);
+      extractedText = data.text;
+    } catch (pdfErr) {
+      console.error('PDF parse error:', pdfErr);
+      return res.status(400).json({ message: 'Failed to parse PDF. The file may be corrupted or image-based.' });
+    }
 
     const textbook = new Textbook({
       userId: req.userId,
@@ -73,8 +79,12 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res) => 
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error processing file' });
+    console.error('Upload error:', err);
+    res.status(500).json({
+      message: 'Error processing file',
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
   }
 });
 
