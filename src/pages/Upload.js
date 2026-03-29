@@ -139,7 +139,7 @@ const Upload = ({ user }) => {
                   <p style={{ fontSize: '2rem', marginBottom: '1rem' }}>📄</p>
                   <p>Click to upload a PDF file</p>
                   <p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                    Maximum file size: 300MB
+                    Maximum file size: 10MB (Cloudinary free tier limit)
                   </p>
                 </>
               )}

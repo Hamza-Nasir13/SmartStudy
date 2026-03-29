@@ -6,6 +6,8 @@ const { body, validationResult } = require('express-validator');
 const multer = require('multer');
 const jwt = require('jsonwebtoken');
 const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+const path = require('path');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -14,8 +16,21 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configure multer for file uploads - use memory storage
-const storage = multer.memoryStorage();
+// Configure multer for file uploads - use disk storage to avoid memory issues
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads/';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
 
 const upload = multer({
   storage,
@@ -26,7 +41,9 @@ const upload = multer({
       cb(new Error('Only PDF files are allowed'), false);
     }
   },
-  limits: { fileSize: 300 * 1024 * 1024 }, // 300MB limit
+  limits: {
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024
+  }, // Default 10MB (Cloudinary free tier), increase if you have paid plan
 });
 
 // Middleware to protect routes
@@ -49,8 +66,9 @@ const authenticate = async (req, res, next) => {
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
+      const maxSizeMB = (parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024) / (1024 * 1024);
       return res.status(400).json({
-        message: `File is too large. Maximum size is ${(300 * 1024 * 1024 / (1024 * 1024)).toFixed(0)}MB.`
+        message: `File is too large. Maximum size is ${maxSizeMB.toFixed(0)}MB.`
       });
     }
     return res.status(400).json({ message: err.message });
@@ -71,12 +89,13 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
     }
 
     console.log(`Processing upload: ${req.file.originalname} (${(req.file.size / (1024 * 1024)).toFixed(2)}MB)`);
+    const tempFilePath = req.file.path;
 
-    // Extract text from PDF (using memory buffer)
+    // Extract text from PDF (using file path to avoid memory issues)
     let extractedText;
     try {
       console.log('Starting PDF text extraction...');
-      const data = await pdfParse(req.file.buffer);
+      const data = await pdfParse(fs.createReadStream(tempFilePath));
       extractedText = data.text;
       console.log(`PDF text extraction successful for ${req.file.originalname}:`, {
         textLength: extractedText.length,
@@ -84,9 +103,16 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
       });
     } catch (pdfErr) {
       console.error('PDF parse error:', pdfErr);
+      // Clean up temp file before returning
+      fs.unlink(tempFilePath, () => {});
       return res.status(400).json({
         message: 'Failed to parse PDF. The file may be corrupted, password-protected, or image-based with no selectable text.'
       });
+    } finally {
+      // Clean up temp file after extraction
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
     }
 
     if (!extractedText || extractedText.trim().length === 0) {
@@ -96,7 +122,7 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
       });
     }
 
-    // Upload PDF to Cloudinary
+    // Upload PDF to Cloudinary - stream from disk
     let filePath;
     try {
       console.log('Starting Cloudinary upload...');
@@ -117,15 +143,22 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
             }
           }
         );
-        stream.end(req.file.buffer);
+        // Stream the file from disk instead of using buffer
+        const fileStream = fs.createReadStream(tempFilePath);
+        fileStream.pipe(stream);
       });
       filePath = uploadResult.secure_url;
     } catch (cloudErr) {
       console.error('Cloudinary upload error:', cloudErr);
       return res.status(500).json({
-        message: 'Failed to upload file to cloud storage. The file may be too large or there may be a network issue.',
+        message: 'Failed to upload file to cloud storage. The file may be too large for Cloudinary (max 10MB for free tier).',
         details: process.env.NODE_ENV === 'development' ? cloudErr.message : undefined
       });
+    } finally {
+      // Ensure temp file is deleted even if upload fails
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
     }
 
     const textbook = new Textbook({
