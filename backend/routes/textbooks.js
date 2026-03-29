@@ -49,7 +49,9 @@ const authenticate = async (req, res, next) => {
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File is too large. Maximum size is 50MB.' });
+      return res.status(400).json({
+        message: `File is too large. Maximum size is ${(300 * 1024 * 1024 / (1024 * 1024)).toFixed(0)}MB.`
+      });
     }
     return res.status(400).json({ message: err.message });
   }
@@ -68,9 +70,12 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
       return res.status(400).json({ message: 'Title is required' });
     }
 
+    console.log(`Processing upload: ${req.file.originalname} (${(req.file.size / (1024 * 1024)).toFixed(2)}MB)`);
+
     // Extract text from PDF (using memory buffer)
     let extractedText;
     try {
+      console.log('Starting PDF text extraction...');
       const data = await pdfParse(req.file.buffer);
       extractedText = data.text;
       console.log(`PDF text extraction successful for ${req.file.originalname}:`, {
@@ -94,23 +99,33 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
     // Upload PDF to Cloudinary
     let filePath;
     try {
+      console.log('Starting Cloudinary upload...');
       const uploadResult = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
+        const stream = cloudinary.uploader.upload_stream(
           {
             resource_type: 'raw',
             folder: 'smartstudy/textbooks',
             public_id: Date.now() + '-' + req.file.originalname.replace(/\.[^/.]+$/, ''),
           },
           (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
+            if (error) {
+              console.error('Cloudinary stream error:', error);
+              reject(error);
+            } else {
+              console.log('Cloudinary upload successful:', result.secure_url);
+              resolve(result);
+            }
           }
-        ).end(req.file.buffer);
+        );
+        stream.end(req.file.buffer);
       });
       filePath = uploadResult.secure_url;
     } catch (cloudErr) {
       console.error('Cloudinary upload error:', cloudErr);
-      return res.status(500).json({ message: 'Failed to upload file to cloud storage' });
+      return res.status(500).json({
+        message: 'Failed to upload file to cloud storage. The file may be too large or there may be a network issue.',
+        details: process.env.NODE_ENV === 'development' ? cloudErr.message : undefined
+      });
     }
 
     const textbook = new Textbook({
@@ -139,6 +154,48 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
       message: 'Error processing file',
       error: err.message,
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
+});
+
+// Delete textbook
+router.delete('/:id', authenticate, async (req, res) => {
+  try {
+    const textbook = await Textbook.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
+    if (!textbook) {
+      return res.status(404).json({ message: 'Textbook not found' });
+    }
+
+    // Delete from Cloudinary if filePath exists and is a Cloudinary URL
+    if (textbook.filePath && textbook.filePath.includes('cloudinary')) {
+      try {
+        // Extract public_id from URL
+        // URL format: https://res.cloudinary.com/cloud_name/raw/upload/v1234567890/folder/filename
+        const urlParts = textbook.filePath.split('/');
+        const publicId = urlParts.slice(-2).join('/'); // Get folder/filename
+
+        console.log('Deleting file from Cloudinary:', publicId);
+        await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+        console.log('Cloudinary file deleted successfully');
+      } catch (cloudErr) {
+        console.error('Failed to delete file from Cloudinary:', cloudErr);
+        // Continue with database deletion even if Cloudinary delete fails
+      }
+    }
+
+    await Textbook.findByIdAndDelete(req.params.id);
+
+    console.log('Textbook deleted:', textbook._id);
+    res.json({ message: 'Textbook deleted successfully' });
+  } catch (err) {
+    console.error('Delete textbook error:', err);
+    res.status(500).json({
+      message: 'Error deleting textbook',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 });

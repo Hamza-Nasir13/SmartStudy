@@ -81,6 +81,26 @@ const Upload = ({ user }) => {
     navigate(`/flashcards?textbookId=${textbookId}`);
   };
 
+  const handleDeleteTextbook = async (textbookId, title) => {
+    if (!window.confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(`${API_URL}/textbooks/${textbookId}`);
+      setSuccess(response.data.message);
+      fetchTextbooks(); // Refresh the list
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Error deleting textbook';
+      console.error('Delete textbook failed:', {
+        error: err.message,
+        response: err.response?.data,
+        textbookId
+      });
+      setError(errorMessage);
+    }
+  };
+
   return (
     <div className="container" style={{ maxWidth: '900px', marginTop: '2rem' }}>
       <h2 style={{ marginBottom: '2rem' }}>📚 Upload Textbook</h2>
@@ -119,7 +139,7 @@ const Upload = ({ user }) => {
                   <p style={{ fontSize: '2rem', marginBottom: '1rem' }}>📄</p>
                   <p>Click to upload a PDF file</p>
                   <p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                    Maximum file size: 10MB
+                    Maximum file size: 300MB
                   </p>
                 </>
               )}
@@ -186,6 +206,19 @@ const Upload = ({ user }) => {
                     title={textbook.extractedText?.length < 50 ? 'Insufficient text extracted from PDF' : ''}
                   >
                     Generate Flashcards
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTextbook(textbook._id, textbook.title)}
+                    className="btn btn-outline"
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '0.9rem',
+                      color: '#dc2626',
+                      borderColor: '#dc2626'
+                    }}
+                    title="Delete textbook"
+                  >
+                    Delete
                   </button>
                 </div>
               </div>
