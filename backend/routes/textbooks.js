@@ -73,9 +73,22 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
     try {
       const data = await pdfParse(req.file.buffer);
       extractedText = data.text;
+      console.log(`PDF text extraction successful for ${req.file.originalname}:`, {
+        textLength: extractedText.length,
+        preview: extractedText.substring(0, 200) + '...'
+      });
     } catch (pdfErr) {
       console.error('PDF parse error:', pdfErr);
-      return res.status(400).json({ message: 'Failed to parse PDF. The file may be corrupted or image-based.' });
+      return res.status(400).json({
+        message: 'Failed to parse PDF. The file may be corrupted, password-protected, or image-based with no selectable text.'
+      });
+    }
+
+    if (!extractedText || extractedText.trim().length === 0) {
+      console.error('No text extracted from PDF:', req.file.originalname);
+      return res.status(400).json({
+        message: 'No text could be extracted from this PDF. The file may be an image-based or scanned PDF that requires OCR.'
+      });
     }
 
     // Upload PDF to Cloudinary

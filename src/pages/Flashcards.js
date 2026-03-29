@@ -29,6 +29,13 @@ const Flashcards = ({ user }) => {
     fetchFlashcards();
   }, []);
 
+  // Sync textbookId from URL with formData
+  useEffect(() => {
+    if (textbookId) {
+      setFormData(prev => ({ ...prev, textbookId }));
+    }
+  }, [textbookId]);
+
   const fetchFlashcards = async () => {
     try {
       const response = await axios.get(`${API_URL}/flashcards`);
@@ -49,15 +56,22 @@ const Flashcards = ({ user }) => {
     setLoading(true);
     setError('');
 
+    console.log('Creating flashcard with data:', formData);
+
     try {
-      await axios.post(`${API_URL}/flashcards/create`, formData);
+      const response = await axios.post(`${API_URL}/flashcards/create`, formData);
+      console.log('Flashcard creation successful:', response.data);
       setSuccess('Flashcard created successfully!');
       setFormData({ ...formData, front: '', back: '', category: '' });
       fetchFlashcards();
     } catch (err) {
-      setError(
-        err.response?.data?.message || 'Error creating flashcard'
-      );
+      const errorMessage = err.response?.data?.message || 'Error creating flashcard';
+      console.error('Flashcard creation failed:', {
+        error: err.message,
+        response: err.response?.data,
+        formData: formData
+      });
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -68,18 +82,27 @@ const Flashcards = ({ user }) => {
     setError('');
     setSuccess('');
 
+    const requestData = {
+      textbookId: formData.textbookId,
+      count: parseInt(formData.count),
+    };
+
+    console.log('Generating flashcards with data:', requestData);
+
     try {
-      const response = await axios.post(`${API_URL}/flashcards/generate`, {
-        textbookId: formData.textbookId,
-        count: parseInt(formData.count),
-      });
+      const response = await axios.post(`${API_URL}/flashcards/generate`, requestData);
+      console.log('Flashcard generation successful:', response.data);
       setSuccess(response.data.message);
       setShowForm(false);
       fetchFlashcards();
     } catch (err) {
-      setError(
-        err.response?.data?.message || 'Error generating flashcards'
-      );
+      const errorMessage = err.response?.data?.message || 'Error generating flashcards';
+      console.error('Flashcard generation failed:', {
+        error: err.message,
+        response: err.response?.data,
+        request: requestData
+      });
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

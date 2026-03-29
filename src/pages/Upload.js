@@ -20,9 +20,13 @@ const Upload = ({ user }) => {
   const fetchTextbooks = async () => {
     try {
       const response = await axios.get(`${API_URL}/textbooks`);
+      console.log('Fetched textbooks:', response.data);
       setTextbooks(response.data);
     } catch (err) {
-      console.error('Error fetching textbooks:', err);
+      console.error('Error fetching textbooks:', {
+        error: err.message,
+        response: err.response?.data
+      });
     }
   };
 
@@ -149,20 +153,28 @@ const Upload = ({ user }) => {
                   padding: '1rem',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
                 }}
               >
-                <div>
+                <div style={{ flex: '1', minWidth: '250px' }}>
                   <h4 style={{ marginBottom: '0.5rem' }}>{textbook.title}</h4>
-                  <p style={{ fontSize: '0.9rem', color: '#6b7280' }}>
-                    {new Date(textbook.uploadedAt).toLocaleDateString()}
+                  <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                    Uploaded: {new Date(textbook.uploadedAt).toLocaleDateString()}
+                  </p>
+                  <p style={{ fontSize: '0.85rem', color: textbook.extractedText?.length >= 50 ? '#059669' : '#dc2626' }}>
+                    Text extracted: {textbook.extractedText?.length || 0} characters
+                    {textbook.extractedText?.length < 50 && ' (insufficient for quiz/flashcard generation)'}
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button
                     onClick={() => handleGenerateQuiz(textbook._id)}
                     className="btn btn-outline"
                     style={{ padding: '8px 16px', fontSize: '0.9rem' }}
+                    disabled={textbook.extractedText?.length < 50}
+                    title={textbook.extractedText?.length < 50 ? 'Insufficient text extracted from PDF' : ''}
                   >
                     Generate Quiz
                   </button>
@@ -170,6 +182,8 @@ const Upload = ({ user }) => {
                     onClick={() => handleGenerateFlashcards(textbook._id)}
                     className="btn btn-outline"
                     style={{ padding: '8px 16px', fontSize: '0.9rem' }}
+                    disabled={textbook.extractedText?.length < 50}
+                    title={textbook.extractedText?.length < 50 ? 'Insufficient text extracted from PDF' : ''}
                   >
                     Generate Flashcards
                   </button>

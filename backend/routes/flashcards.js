@@ -128,10 +128,30 @@ router.post('/generate', authenticate, [
     });
 
     if (!textbook) {
+      console.error('Textbook not found for flashcard generation:', { textbookId });
       return res.status(404).json({ message: 'Textbook not found' });
     }
 
+    console.log('Generating flashcards from textbook:', {
+      textbookId: textbook._id,
+      title: textbook.title,
+      extractedTextLength: textbook.extractedText?.length || 0,
+      count: count
+    });
+
     const flashcardsData = generateFlashcardsFromText(textbook.extractedText, count);
+
+    console.log('Flashcard generation result:', {
+      requested: count,
+      generated: flashcardsData.length,
+      reason: flashcardsData.length === 0 ? 'No valid sentences or key terms found in textbook text' : undefined
+    });
+
+    if (flashcardsData.length === 0) {
+      return res.status(400).json({
+        message: 'Could not generate flashcards. The textbook may not have enough suitable content. Try a different textbook or manually create flashcards.'
+      });
+    }
 
     const flashcards = await Flashcard.insertMany(
       flashcardsData.map(fc => ({

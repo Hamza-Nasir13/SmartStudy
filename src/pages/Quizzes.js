@@ -27,6 +27,13 @@ const Quizzes = ({ user }) => {
     fetchQuizzes();
   }, []);
 
+  // Sync textbookId from URL with formData
+  useEffect(() => {
+    if (textbookId) {
+      setFormData(prev => ({ ...prev, textbookId }));
+    }
+  }, [textbookId]);
+
   const fetchQuizzes = async () => {
     try {
       const response = await axios.get(`${API_URL}/quizzes`);
@@ -47,14 +54,21 @@ const Quizzes = ({ user }) => {
     setError('');
     setCurrentQuiz(null);
 
+    console.log('Generating quiz with data:', formData);
+
     try {
       const response = await axios.post(`${API_URL}/quizzes/generate`, formData);
+      console.log('Quiz generation successful:', response.data);
       setCurrentQuiz(response.data.quiz);
       setShowForm(false);
     } catch (err) {
-      setError(
-        err.response?.data?.message || 'Error generating quiz'
-      );
+      const errorMessage = err.response?.data?.message || 'Error generating quiz';
+      console.error('Quiz generation failed:', {
+        error: err.message,
+        response: err.response?.data,
+        formData: formData
+      });
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

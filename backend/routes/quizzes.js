@@ -114,8 +114,22 @@ router.post('/generate', authenticate, [
     }
 
     if (!text || text.length < 50) {
-      return res.status(400).json({ message: 'Insufficient text content' });
+      console.error('Insufficient text content for quiz generation:', {
+        textbookId: textbookId,
+        textLength: text?.length || 0,
+        textPreview: text?.substring(0, 200) || 'none'
+      });
+      return res.status(400).json({
+        message: 'Insufficient text content. The textbook may be image-based, scanned, or have very little selectable text. Try a different textbook.',
+      });
     }
+
+    console.log('Generating quiz from text:', {
+      textbookId: textbookId,
+      textLength: text.length,
+      title: req.body.title,
+      topic: req.body.topic
+    });
 
     const quizData = generateQuizFromText(text, req.body.title, req.body.topic);
 
