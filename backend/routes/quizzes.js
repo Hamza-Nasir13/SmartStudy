@@ -83,29 +83,28 @@ function generateQuizFromText(text, title, topic = '') {
 }
 
 // Generate quiz from textbook
-router.post('/generate', authenticate, [
-  body('textbookId').optional().isMongoId(),
-  body('text').optional().isString().trim(),
-  body('title').notEmpty().trim(),
-  body('topic').optional().trim(),
-], async (req, res) => {
+router.post('/generate', authenticate, async (req, res) => {
   try {
-    const errors = validationResult(req);
-    console.log('Validation errors:', errors.array());
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { textbookId, text: directText, title, topic } = req.body;
 
-    // Check that at least one source is provided
-    if (!textbookId && (!directText || directText.trim() === '')) {
+    console.log('Quiz generation request:', { textbookId, title, topic, hasText: !!directText });
+
+    // Manual validation
+    if (!title || typeof title !== 'string' || title.trim() === '') {
       return res.status(400).json({
-        errors: [{
-          msg: 'Either textbookId or text must be provided',
-          param: 'textbookId',
-          location: 'body'
-        }]
+        errors: [{ msg: 'Title is required', param: 'title', location: 'body' }]
+      });
+    }
+
+    if (!textbookId && (!directText || typeof directText !== 'string' || directText.trim() === '')) {
+      return res.status(400).json({
+        errors: [{ msg: 'Either textbookId or text must be provided', param: 'textbookId', location: 'body' }]
+      });
+    }
+
+    if (textbookId && typeof textbookId !== 'string') {
+      return res.status(400).json({
+        errors: [{ msg: 'Invalid textbookId format', param: 'textbookId', location: 'body' }]
       });
     }
 
