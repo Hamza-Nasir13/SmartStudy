@@ -85,12 +85,13 @@ function generateQuizFromText(text, title, topic = '') {
 // Generate quiz from textbook
 router.post('/generate', authenticate, [
   body('textbookId').optional().isMongoId(),
-  body('text').if(body('textbookId').optional().isEmpty()).notEmpty().withMessage('Either textbookId or text is required'),
+  body('text').optional().isString().trim(),
   body('title').notEmpty().trim(),
   body('topic').optional().trim(),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
+    console.log('Validation errors:', errors.array());
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
@@ -98,7 +99,7 @@ router.post('/generate', authenticate, [
     const { textbookId, text: directText, title, topic } = req.body;
 
     // Check that at least one source is provided
-    if (!textbookId && !directText) {
+    if (!textbookId && (!directText || directText.trim() === '')) {
       return res.status(400).json({
         errors: [{
           msg: 'Either textbookId or text must be provided',
