@@ -151,7 +151,7 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
     } catch (cloudErr) {
       console.error('Cloudinary upload error:', cloudErr);
       return res.status(500).json({
-        message: 'Failed to upload file to cloud storage. The file may be too large for Cloudinary (max 10MB for free tier).',
+        message: 'Failed to upload file to cloud storage. The file may be too large or there may be a network issue.',
         details: process.env.NODE_ENV === 'development' ? cloudErr.message : undefined
       });
     } finally {

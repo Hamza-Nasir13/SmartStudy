@@ -10,6 +10,7 @@ const Upload = ({ user }) => {
   const [title, setTitle] = useState('');
   const [textbooks, setTextbooks] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [fetchingTextbooks, setFetchingTextbooks] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -18,6 +19,7 @@ const Upload = ({ user }) => {
   }, []);
 
   const fetchTextbooks = async () => {
+    setFetchingTextbooks(true);
     try {
       const response = await axios.get(`${API_URL}/textbooks`);
       console.log('Fetched textbooks:', response.data);
@@ -27,6 +29,8 @@ const Upload = ({ user }) => {
         error: err.message,
         response: err.response?.data
       });
+    } finally {
+      setFetchingTextbooks(false);
     }
   };
 
@@ -63,7 +67,7 @@ const Upload = ({ user }) => {
       setSuccess('Textbook uploaded successfully!');
       setFile(null);
       setTitle('');
-      fetchTextbooks();
+      await fetchTextbooks();
     } catch (err) {
       setError(
         err.response?.data?.message || 'Error uploading textbook'
@@ -89,7 +93,8 @@ const Upload = ({ user }) => {
     try {
       const response = await axios.delete(`${API_URL}/textbooks/${textbookId}`);
       setSuccess(response.data.message);
-      fetchTextbooks(); // Refresh the list
+      setError('');
+      await fetchTextbooks();
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Error deleting textbook';
       console.error('Delete textbook failed:', {
@@ -139,7 +144,7 @@ const Upload = ({ user }) => {
                   <p style={{ fontSize: '2rem', marginBottom: '1rem' }}>📄</p>
                   <p>Click to upload a PDF file</p>
                   <p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                    Maximum file size: 10MB (Cloudinary free tier limit)
+                    Maximum file size: 10MB
                   </p>
                 </>
               )}
@@ -158,7 +163,12 @@ const Upload = ({ user }) => {
 
       <div className="card">
         <h3>Your Textbooks</h3>
-        {textbooks.length === 0 ? (
+        {fetchingTextbooks ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
+            <p style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</p>
+            <p>Loading your textbooks...</p>
+          </div>
+        ) : textbooks.length === 0 ? (
           <p style={{ textAlign: 'center', color: '#6b7280', padding: '2rem' }}>
             No textbooks uploaded yet. Upload your first one above!
           </p>
