@@ -91,57 +91,34 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
     console.log(`Processing upload: ${req.file.originalname} (${(req.file.size / (1024 * 1024)).toFixed(2)}MB)`);
     const tempFilePath = req.file.path;
 
-    // Extract text from PDF (using file path)
     let extractedText;
-    try {
-      console.log('Starting PDF text extraction...');
-      const data = await pdfParse(tempFilePath);
-      extractedText = data.text;
-      console.log(`PDF text extraction successful for ${req.file.originalname}:`, {
-        textLength: extractedText.length,
-        preview: extractedText.substring(0, 200) + '...'
-      });
-    } catch (pdfErr) {
-      console.error('PDF parse error (first attempt):', pdfErr);
+    let filePath = null;
 
-      // Fallback: try reading the file into buffer
+    try {
+      // Step 1: Extract text from PDF
+      console.log('Starting PDF text extraction...');
       try {
+        const data = await pdfParse(tempFilePath);
+        extractedText = data.text;
+      } catch (pdfErr) {
+        console.error('PDF parse error (first attempt):', pdfErr);
+        // Fallback: try reading the file into buffer
         console.log('Retrying with buffer method...');
         const fileBuffer = fs.readFileSync(tempFilePath);
         const data = await pdfParse(fileBuffer);
         extractedText = data.text;
-        console.log(`PDF text extraction successful (fallback) for ${req.file.originalname}:`, {
-          textLength: extractedText.length,
-          preview: extractedText.substring(0, 200) + '...'
-        });
-      } catch (fallbackErr) {
-        console.error('PDF parse error (fallback):', fallbackErr);
-        // Clean up temp file before returning
-        if (fs.existsSync(tempFilePath)) {
-          fs.unlink(tempFilePath, () => {});
-        }
-        return res.status(400).json({
-          message: 'Failed to parse PDF. The file may be corrupted, password-protected, or image-based with no selectable text.',
-          error: process.env.NODE_ENV === 'development' ? fallbackErr.message : undefined
-        });
       }
-    } finally {
-      // Clean up temp file after extraction
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
-    }
 
-    if (!extractedText || extractedText.trim().length === 0) {
-      console.error('No text extracted from PDF:', req.file.originalname);
-      return res.status(400).json({
-        message: 'No text could be extracted from this PDF. The file may be an image-based or scanned PDF that requires OCR.'
+      console.log(`PDF text extraction successful for ${req.file.originalname}:`, {
+        textLength: extractedText.length,
+        preview: extractedText.substring(0, 200) + '...'
       });
-    }
 
-    // Upload PDF to Cloudinary - stream from disk
-    let filePath;
-    try {
+      if (!extractedText || extractedText.trim().length === 0) {
+        throw new Error('No text could be extracted from PDF');
+      }
+
+      // Step 2: Upload PDF to Cloudinary - stream from disk
       console.log('Starting Cloudinary upload...');
       const uploadResult = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -160,21 +137,56 @@ router.post('/upload', authenticate, upload.single('file'), handleMulterError, a
             }
           }
         );
-        // Stream the file from disk instead of using buffer
+        // Stream the file from disk
         const fileStream = fs.createReadStream(tempFilePath);
         fileStream.pipe(stream);
       });
       filePath = uploadResult.secure_url;
-    } catch (cloudErr) {
-      console.error('Cloudinary upload error:', cloudErr);
+
+      // Step 3: Save textbook to database
+      const textbook = new Textbook({
+        userId: req.userId,
+        title,
+        filename: req.file.originalname,
+        filePath,
+        extractedText,
+      });
+
+      await textbook.save();
+
+      res.status(201).json({
+        message: 'Textbook uploaded successfully',
+        textbook: {
+          id: textbook._id,
+          title: textbook.title,
+          filename: textbook.filename,
+          textLength: extractedText.length,
+          filePath,
+        },
+      });
+    } catch (err) {
+      console.error('Upload error:', err);
+
+      // Determine error type and respond accordingly
+      if (err.message === 'No text could be extracted from PDF') {
+        return res.status(400).json({
+          message: 'No text could be extracted from this PDF. The file may be an image-based or scanned PDF that requires OCR.'
+        });
+      }
+
       return res.status(500).json({
         message: 'Failed to upload file to cloud storage. The file may be too large or there may be a network issue.',
-        details: process.env.NODE_ENV === 'development' ? cloudErr.message : undefined
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
       });
     } finally {
-      // Ensure temp file is deleted even if upload fails
+      // Clean up temp file - ensure it's deleted after ALL operations
       if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
+        try {
+          fs.unlinkSync(tempFilePath);
+          console.log(`Cleaned up temp file: ${tempFilePath}`);
+        } catch (unlinkErr) {
+          console.error('Failed to delete temp file:', unlinkErr);
+        }
       }
     }
 
