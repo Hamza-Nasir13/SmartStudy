@@ -13,6 +13,7 @@ console.log('MONGODB_URI (first 50 chars):', process.env.MONGODB_URI?.substring(
 console.log('JWT_SECRET:', process.env.JWT_SECRET ? '✓ SET' : '✗ NOT SET');
 console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME ? '✓ SET' : '✗ NOT SET');
 console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? '✓ SET' : '✗ NOT SET');
+console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? '✓ SET' : '✗ NOT SET');
 console.log('NODE_ENV:', process.env.NODE_ENV || 'not set');
 console.log('PORT:', process.env.PORT || '5000 (default)');
 console.log('========================');
