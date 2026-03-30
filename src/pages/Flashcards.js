@@ -24,6 +24,8 @@ const Flashcards = ({ user }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [studyMode, setStudyMode] = useState(false);
+  const [selectedFlashcards, setSelectedFlashcards] = useState([]); // Array of IDs
+  const [selectAll, setSelectAll] = useState(false);
 
   useEffect(() => {
     fetchFlashcards();
@@ -133,13 +135,89 @@ const Flashcards = ({ user }) => {
     setIsFlipped(false);
   };
 
+  const toggleSelectFlashcard = (id) => {
+    setSelectedFlashcards(prev =>
+      prev.includes(id)
+        ? prev.filter(selectedId => selectedId !== id)
+        : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedFlashcards.length === flashcards.length) {
+      setSelectedFlashcards([]);
+      setSelectAll(false);
+    } else {
+      const allIds = flashcards.map(fc => fc._id);
+      setSelectedFlashcards(allIds);
+      setSelectAll(true);
+    }
+  };
+
+  const deleteSelectedFlashcards = async () => {
+    if (selectedFlashcards.length === 0) {
+      setError('No flashcards selected for deletion');
+      return;
+    }
+
+    if (!window.confirm(`Delete ${selectedFlashcards.length} selected flashcard(s)? This cannot be undone.`)) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      // Delete each selected flashcard individually
+      const results = [];
+      for (const id of selectedFlashcards) {
+        try {
+          await axios.delete(`${API_URL}/flashcards/${id}`);
+          results.push({ id, success: true });
+        } catch (err) {
+          console.error(`Failed to delete flashcard ${id}:`, err);
+          results.push({
+            id,
+            success: false,
+            error: err.response?.data?.message || err.message
+          });
+        }
+      }
+
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+
+      if (successCount > 0) {
+        setSuccess(`Successfully deleted ${successCount} flashcard(s)`);
+      }
+      if (failCount > 0) {
+        setError(`${failCount} flashcard(s) could not be deleted`);
+      }
+
+      setSelectedFlashcards([]);
+      setSelectAll(false);
+      await fetchFlashcards();
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      setError('An unexpected error occurred during deletion');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteFlashcard = async (id) => {
     if (window.confirm('Are you sure you want to delete this flashcard?')) {
       try {
         await axios.delete(`${API_URL}/flashcards/${id}`);
         fetchFlashcards();
       } catch (err) {
-        console.error('Error deleting flashcard:', err);
+        console.error('Error deleting flashcard:', {
+          error: err.message,
+          response: err.response?.data,
+          id
+        });
+        setError(err.response?.data?.message || 'Error deleting flashcard');
       }
     }
   };
@@ -318,10 +396,61 @@ const Flashcards = ({ user }) => {
         </button>
       )}
 
+      {/* Bulk actions toolbar */}
+      {!studyMode && flashcards.length > 0 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1rem',
+          padding: '1rem',
+          background: '#f9fafb',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input
+              type="checkbox"
+              checked={selectAll}
+              onChange={toggleSelectAll}
+              style={{ width: '18px', height: '18px' }}
+            />
+            <label style={{ cursor: 'pointer' }}>Select All</label>
+            <span style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+              ({selectedFlashcards.length} of {flashcards.length} selected)
+            </span>
+          </div>
+          {selectedFlashcards.length > 0 && (
+            <button
+              onClick={deleteSelectedFlashcards}
+              className="btn"
+              style={{
+                background: '#dc2626',
+                color: 'white',
+                padding: '8px 16px',
+                fontSize: '0.9rem'
+              }}
+            >
+              Delete Selected ({selectedFlashcards.length})
+            </button>
+          )}
+        </div>
+      )}
+
       {!studyMode && (
         <div className="grid grid-2">
           {flashcards.map((card, index) => (
             <div key={card._id} className="card" style={{ position: 'relative' }}>
+              {/* Checkbox in top-right corner */}
+              <div style={{ position: 'absolute', top: '0.5rem', right: '0.5rem' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedFlashcards.includes(card._id)}
+                  onChange={() => toggleSelectFlashcard(card._id)}
+                  style={{ width: '18px', height: '18px' }}
+                />
+              </div>
+
               <div style={{ marginBottom: '1rem' }}>
                 <span
                   style={{

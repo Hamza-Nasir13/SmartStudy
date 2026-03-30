@@ -197,12 +197,15 @@ router.get('/', authenticate, async (req, res) => {
 // Delete flashcard
 router.delete('/:id', authenticate, async (req, res) => {
   try {
+    console.log('Delete flashcard request:', { id: req.params.id, userId: req.userId });
+
     const flashcard = await Flashcard.findOne({
       _id: req.params.id,
       userId: req.userId,
     });
 
     if (!flashcard) {
+      console.log('Flashcard not found or unauthorized:', { id: req.params.id, userId: req.userId });
       return res.status(404).json({ message: 'Flashcard not found' });
     }
 
