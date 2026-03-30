@@ -20,7 +20,7 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// Generate flashcards from textbook text
+// Generate flashcards from textbook text - improved definition extraction
 function generateFlashcardsFromText(text, count = 10) {
   const sentences = text
     .split(/[.!?]+/)
@@ -30,48 +30,57 @@ function generateFlashcardsFromText(text, count = 10) {
   const flashcards = [];
   const usedSentences = new Set();
 
-  // Key terms extraction (simple)
-  const keyTermPatterns = [
-    /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/g, // Capitalized phrases
-    /(?:is defined as|refers to|means|called)\s+([A-Za-z\s]+)/gi,
-    /(concept|definition|theory|principle|method|technique|approach|strategy|framework)/gi,
+  // Patterns that identify a definition structure: "Term is/means/... definition"
+  // Captures the term before the definition connector
+  const definitionPatterns = [
+    // "Term is/means/refers to/called/defined as definition"
+    /([A-Z][a-z]+(?: [A-Z][a-z]+)*)\s+(is|are|was|were|means|refers to|called|defined as)\s+[A-Za-z0-9\s,.;:'"-]+/i,
+    // "Term: definition" or "Term - definition" or "Term – definition"
+    /([A-Z][a-z]+(?: [A-Z][a-z]+)*)[:\s]*[-–]\s*[A-Za-z0-9\s,.;:'"-]+/i,
+    /([A-Z][a-z]+(?: [A-Z][a-z]+)*):\s*[A-Za-z0-9\s,.;:'"-]+/i,
+    // "Term = definition" (e.g., "Higher CPC = more profitable")
+    /([A-Z][a-z]+(?: [A-Z][a-z]+)*)\s*=\s*[A-Za-z0-9\s,.;:'"-]+/i,
   ];
 
-  for (let i = 0; i < Math.min(count, sentences.length); i++) {
-    const sentence = sentences[i];
+  // Filter sentences that contain a definition pattern
+  const candidateSentences = sentences.filter(sentence => {
+    return definitionPatterns.some(pattern => pattern.test(sentence));
+  });
+
+  console.log('Flashcard generation:', {
+    totalSentences: sentences.length,
+    candidateSentences: candidateSentences.length,
+  });
+
+  // Process candidate sentences to extract term (front) and keep full sentence (back)
+  for (let i = 0; i < Math.min(count, candidateSentences.length); i++) {
+    const sentence = candidateSentences[i];
     if (usedSentences.has(sentence)) continue;
 
     let front = '';
-    let back = '';
 
-    // Try to extract a key term from the sentence
-    for (const pattern of keyTermPatterns) {
+    // Find the first pattern that yields a valid term
+    for (const pattern of definitionPatterns) {
       const match = sentence.match(pattern);
-      if (match && match[0]) {
-        const term = match[0].replace(/^(?:is defined as|refers to|means|called)\s+/i, '').trim();
-        if (term.length > 2 && term.length < 50) {
+      if (match) {
+        let term = match[1].trim();
+        // Validate term: 2-50 chars, 1-5 words
+        const termWords = term.split(/\s+/);
+        if (term.length >= 2 && term.length <= 50 && termWords.length <= 5) {
           front = term;
-          back = sentence;
           break;
         }
       }
     }
 
-    // Fallback: use first few words as front
-    if (!front) {
-      const words = sentence.split(' ');
-      if (words.length >= 3) {
-        front = words.slice(0, Math.min(4, Math.floor(words.length / 2))).join(' ');
-        back = sentence;
-      } else {
-        continue;
-      }
-    }
+    // If no valid term found, skip this sentence (no fallback to avoid random cards)
+    if (!front) continue;
 
     usedSentences.add(sentence);
-    flashcards.push({ front, back });
+    flashcards.push({ front, back: sentence });
   }
 
+  console.log('Flashcards generated:', flashcards.length);
   return flashcards;
 }
 
@@ -182,6 +191,31 @@ router.get('/', authenticate, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete flashcard
+router.delete('/:id', authenticate, async (req, res) => {
+  try {
+    const flashcard = await Flashcard.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
+    if (!flashcard) {
+      return res.status(404).json({ message: 'Flashcard not found' });
+    }
+
+    await Flashcard.findByIdAndDelete(req.params.id);
+
+    console.log('Flashcard deleted:', req.params.id);
+    res.json({ message: 'Flashcard deleted successfully' });
+  } catch (err) {
+    console.error('Delete flashcard error:', err);
+    res.status(500).json({
+      message: 'Error deleting flashcard',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
