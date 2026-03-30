@@ -1,11 +1,11 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize with API key from environment
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize with API key and force v1 API (not v1beta which is deprecated)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY, { apiVersion: 'v1' });
 
-// Use gemini-pro for compatibility with @google/generative-ai v0.24.x
+// Use gemini-1.5-pro with v1 API
 const model = genAI.getGenerativeModel({
-  model: 'gemini-pro',
+  model: 'gemini-1.5-pro',
   generationConfig: {
     temperature: 1.0, // Higher for more variety and less repetition
     topK: 40,
