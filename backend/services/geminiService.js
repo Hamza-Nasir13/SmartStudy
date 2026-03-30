@@ -3,9 +3,9 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 // Initialize with API key from environment
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Use gemini-1.5-pro for best quality
+// Use gemini-1.5-flash for better availability and speed
 const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-pro',
+  model: 'gemini-1.5-flash',
   generationConfig: {
     temperature: 1.0, // Higher for more variety and less repetition
     topK: 40,
