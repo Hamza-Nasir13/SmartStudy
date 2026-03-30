@@ -4,6 +4,7 @@ const Flashcard = require('../models/Flashcard');
 const Textbook = require('../models/Textbook');
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
+const { generateFlashcardsWithGemini } = require('../services/geminiService');
 
 const authenticate = async (req, res, next) => {
   try {
@@ -20,8 +21,8 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// Generate flashcards from textbook text using definition extraction
-function generateFlashcardsFromText(text, count = 10) {
+// Generate flashcards using heuristic method (fallback, not primary)
+function generateFlashcardsHeuristic(text, count = 10) {
   const sentences = text
     .split(/[.!?]+/)
     .map(s => s.trim())
@@ -177,20 +178,37 @@ router.post('/generate', authenticate, [
       textbookId: textbook._id,
       title: textbook.title,
       extractedTextLength: textbook.extractedText?.length || 0,
-      count: count
+      count: count,
+      method: 'gemini-ai'
     });
 
-    const flashcardsData = generateFlashcardsFromText(textbook.extractedText, count);
+    let flashcardsData;
+    let generationMethod = 'gemini-ai';
+
+    try {
+      // Primary: Use Gemini AI for high-quality flashcards
+      flashcardsData = await generateFlashcardsWithGemini(textbook.extractedText, count);
+      console.log('Gemini flashcards generated:', flashcardsData.length);
+    } catch (err) {
+      console.warn('Gemini generation failed, falling back to heuristic:', err.message);
+      generationMethod = 'heuristic-fallback';
+      flashcardsData = generateFlashcardsHeuristic(textbook.extractedText, count);
+      console.log('Heuristic flashcards generated:', flashcardsData.length);
+    }
 
     console.log('Flashcard generation result:', {
       requested: count,
       generated: flashcardsData.length,
-      reason: flashcardsData.length === 0 ? 'No valid sentences or key terms found in textbook text' : undefined
+      method: generationMethod,
+      reason: flashcardsData.length === 0 ? 'Could not extract quality flashcards from text' : undefined
     });
 
     if (flashcardsData.length === 0) {
       return res.status(400).json({
-        message: 'Could not generate flashcards. The textbook may not have enough suitable content. Try a different textbook or manually create flashcards.'
+        message: 'Could not generate flashcards. The textbook may not have enough suitable content. Try a different textbook.',
+        details: generationMethod === 'gemini-ai'
+          ? 'AI could not identify key concepts. Text might be too dense or lacking clear definitions.'
+          : 'Heuristic method found no definition patterns. Try a textbook with more explicit explanations.'
       });
     }
 
