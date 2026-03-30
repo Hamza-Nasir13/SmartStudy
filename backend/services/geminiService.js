@@ -7,7 +7,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
   model: 'gemini-1.5-pro',
   generationConfig: {
-    temperature: 0.9, // Higher for more variety and less repetition
+    temperature: 1.0, // Higher for more variety and less repetition
     topK: 40,
     topP: 0.95,
     maxOutputTokens: 4096, // Allow more output for more cards
@@ -18,9 +18,10 @@ const model = genAI.getGenerativeModel({
  * Generate flashcards from textbook text using Gemini AI
  * @param {string} text - The extracted text from the textbook
  * @param {number} count - Number of flashcards to generate (default 10)
+ * @param {Array<string>} existingConcepts - List of already existing flashcard fronts to avoid (default [])
  * @returns {Promise<Array<{front: string, back: string}>>}
  */
-async function generateFlashcardsWithGemini(text, count = 10) {
+async function generateFlashcardsWithGemini(text, count = 10, existingConcepts = []) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
@@ -31,30 +32,29 @@ async function generateFlashcardsWithGemini(text, count = 10) {
     ? text.substring(0, maxTextLength) + '...'
     : text;
 
-  const prompt = `You are an expert educator creating flashcards for students. Your task is to analyze the following textbook content and create exactly ${count} DIFFERENT high-quality flashcards.
+  // Build prompt with existing concepts avoidance
+  const existingListPrompt = existingConcepts && existingConcepts.length > 0
+    ? `\nALREADY COVERED CONCEPTS:\nThe following terms have already been used in previous flashcards. DO NOT create flashcards for these terms. Focus on completely NEW concepts:\n${existingConcepts.slice(0, 50).map(c => `- ${c}`).join('\n')}\n`
+    : '';
+
+  const prompt = `You are an expert educator creating flashcards for students. Analyze the textbook content and create exactly ${count} high-quality flashcards.${existingListPrompt}
 
 CRITICAL RULES:
 1. CREATE EXACTLY ${count} FLASHCARDS - no more, no less.
-2. Each flashcard MUST cover a DIFFERENT concept/topic. Do NOT repeat the same concept with slight variations.
+2. Each flashcard must cover a COMPLETELY DIFFERENT concept. Do NOT create multiple cards about the same general topic even if wording differs.
 3. FRONT (Term): Clear, specific concept name (2-6 words). Examples: "Short-tail keywords", "Cost Per Click", "Transactional Keywords".
-   - NEVER use vague terms like "users", "data", "information", "results", "click", "search", "the", "website" alone.
-   - Use proper noun phrases: "Higher CPC" not just "CPC", "Search engine algorithms" not just "algorithms".
-4. BACK (Definition): Concise explanation using ONLY information from the text (1-2 sentences max).
-5. Scan the ENTIRE text and pick the ${count} most important, definable concepts.
-6. If text is short, still create ${count} cards by finding multiple aspects of each concept.
+   - NEVER use vague terms: "users", "data", "information", "results", "click", "search", "the", "website" alone.
+   - Use proper noun phrases: "Higher CPC" not just "CPC".
+4. BACK (Definition): Concise explanation (1-2 sentences) using ONLY information from the text.
+5. Scan the ENTIRE text (beginning, middle, end) to ensure broad topic coverage.
+6. If the text lacks enough distinct concepts, create FEWER cards rather than repeating concepts.
 
-OUTPUT FORMAT: Return ONLY a valid JSON array with exactly ${count} objects. Each object: {"front": "...", "back": "..."}
-Example (for count=3):
-[
-  {"front": "Short-tail keywords", "back": "Search terms with 1-2 words and high search volume; broad and competitive."},
-  {"front": "Transactional keywords", "back": "Keywords that show strong buying intent; users are ready to purchase."},
-  {"front": "CPC", "back": "Cost Per Click - the amount advertisers pay each time someone clicks their ad."}
-]
+OUTPUT FORMAT: Return ONLY a valid JSON array with exactly ${count} objects: {"front": "...", "back": "..."}
 
-Textbook content to study:
+Textbook content:
 """${truncatedText}"""
 
-Now generate exactly ${count} different flashcards:`;
+Generate exactly ${count} DIFFERENT flashcards now:`;
 
   try {
     console.log('Generating flashcards with Gemini...', { textLength: truncatedText.length, requestedCount: count });
@@ -100,9 +100,10 @@ Now generate exactly ${count} different flashcards:`;
 
     console.log('Gemini returned raw array:', { length: flashcards.length, firstItem: flashcards[0] });
 
-    // Validate and clean each card
+    // Prepare sets for deduplication
+    const existingSet = new Set(existingConcepts.map(c => c.toLowerCase()));
     const validFlashcards = [];
-    const seen = new Set(); // Avoid duplicates
+    const seen = new Set(); // Avoid duplicates within this batch
 
     for (const card of flashcards) {
       if (!card || typeof card !== 'object') continue;
@@ -112,20 +113,34 @@ Now generate exactly ${count} different flashcards:`;
 
       if (!front || !back) continue;
       if (front.length < 2 || front.length > 100) continue;
-      if (back.length < 10) continue; // Definition too short
+      if (back.length < 10) continue;
 
-      // Create a signature to detect duplicates (case-insensitive front)
-      const signature = front.toLowerCase();
-      if (seen.has(signature)) {
-        console.log('Skipping duplicate card:', front);
+      const frontLower = front.toLowerCase();
+
+      // Skip if duplicate within this batch
+      if (seen.has(frontLower)) {
+        console.log('Skipping duplicate (batch):', front);
         continue;
       }
-      seen.add(signature);
 
+      // Skip if this concept already exists in user's flashcards
+      if (existingSet.has(frontLower)) {
+        console.log('Skipping existing concept:', front);
+        continue;
+      }
+
+      seen.add(frontLower);
       validFlashcards.push({ front, back });
     }
 
-    console.log('Flashcards after validation:', { requested: count, raw: flashcards.length, valid: validFlashcards.length, duplicatesRemoved: flashcards.length - validFlashcards.length });
+    const totalSkipped = flashcards.length - validFlashcards.length;
+    console.log('Flashcards after validation:', {
+      requested: count,
+      raw: flashcards.length,
+      valid: validFlashcards.length,
+      totalSkipped,
+      duplicatesRemovedWithinBatch: flashcards.length - validFlashcards.length - existingConcepts.filter(c => seen.has(c.toLowerCase())).length
+    });
 
     // If we got fewer than requested, that's okay - return what we have
     // But ensure we don't return more than count

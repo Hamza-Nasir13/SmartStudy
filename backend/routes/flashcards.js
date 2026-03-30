@@ -22,7 +22,8 @@ const authenticate = async (req, res, next) => {
 };
 
 // Generate flashcards using heuristic method (fallback, not primary)
-function generateFlashcardsHeuristic(text, count = 10) {
+function generateFlashcardsHeuristic(text, count = 10, existingConcepts = []) {
+  const existingSet = new Set(existingConcepts.map(c => c.toLowerCase()));
   const sentences = text
     .split(/[.!?]+/)
     .map(s => s.trim())
@@ -96,6 +97,11 @@ function generateFlashcardsHeuristic(text, count = 10) {
     if (isVagueTerm(term)) continue;
     const termWords = term.split(/\s+/);
     if (termWords.length > 5) continue; // Too long for a "term"
+
+    // Skip if this concept already exists in user's flashcards
+    if (existingSet.has(term.toLowerCase())) {
+      continue;
+    }
 
     // Ensure the definition actually explains the term (not just repeating it)
     // Check that the definition portion contains more than just the term
@@ -174,12 +180,18 @@ router.post('/generate', authenticate, [
       return res.status(404).json({ message: 'Textbook not found' });
     }
 
+    // Fetch existing flashcard fronts to avoid duplicates
+    const existingFronts = await Flashcard.find({ userId: req.userId }).distinct('front');
+    // Limit to first 50 to avoid huge prompts
+    const limitedExisting = existingFronts.slice(0, 50);
+
     console.log('Generating flashcards from textbook:', {
       textbookId: textbook._id,
       title: textbook.title,
       extractedTextLength: textbook.extractedText?.length || 0,
       count: count,
-      method: 'gemini-ai'
+      method: 'gemini-ai',
+      existingConceptsCount: existingFronts.length,
     });
 
     let flashcardsData;
@@ -187,20 +199,30 @@ router.post('/generate', authenticate, [
 
     try {
       // Primary: Use Gemini AI for high-quality flashcards
-      flashcardsData = await generateFlashcardsWithGemini(textbook.extractedText, count);
+      flashcardsData = await generateFlashcardsWithGemini(textbook.extractedText, count, limitedExisting);
       console.log('Gemini flashcards generated:', flashcardsData.length);
     } catch (err) {
       console.warn('Gemini generation failed, falling back to heuristic:', err.message);
       generationMethod = 'heuristic-fallback';
-      flashcardsData = generateFlashcardsHeuristic(textbook.extractedText, count);
+      flashcardsData = generateFlashcardsHeuristic(textbook.extractedText, count, limitedExisting);
       console.log('Heuristic flashcards generated:', flashcardsData.length);
+    }
+
+    // Final deduplication against ALL existing flashcards (not just limited list)
+    const existingSetFull = new Set(existingFronts.map(c => c.toLowerCase()));
+    const beforeDedupCount = flashcardsData.length;
+    flashcardsData = flashcardsData.filter(fc => !existingSetFull.has(fc.front.toLowerCase()));
+    const duplicatesRemoved = beforeDedupCount - flashcardsData.length;
+    if (duplicatesRemoved > 0) {
+      console.log(`Removed ${duplicatesRemoved} flashcards that already existed (post-generation dedup)`);
     }
 
     console.log('Flashcard generation result:', {
       requested: count,
       generated: flashcardsData.length,
       method: generationMethod,
-      reason: flashcardsData.length === 0 ? 'Could not extract quality flashcards from text' : undefined
+      reason: flashcardsData.length === 0 ? 'Could not extract quality flashcards from text' : undefined,
+      duplicatesRemoved,
     });
 
     if (flashcardsData.length === 0) {
