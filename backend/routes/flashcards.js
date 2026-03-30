@@ -20,67 +20,99 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// Generate flashcards from textbook text - improved definition extraction
+// Generate flashcards from textbook text using definition extraction
 function generateFlashcardsFromText(text, count = 10) {
   const sentences = text
     .split(/[.!?]+/)
     .map(s => s.trim())
-    .filter(s => s.length > 30 && s.length < 200);
+    .filter(s => s.length > 30 && s.length < 250); // Slightly longer max for definitions
 
   const flashcards = [];
   const usedSentences = new Set();
 
-  // Patterns that identify a definition structure: "Term is/means/... definition"
-  // Captures the term before the definition connector
-  const definitionPatterns = [
-    // "Term is/means/refers to/called/defined as definition"
-    /([A-Z][a-z]+(?: [A-Z][a-z]+)*)\s+(is|are|was|were|means|refers to|called|defined as)\s+[A-Za-z0-9\s,.;:'"-]+/i,
-    // "Term: definition" or "Term - definition" or "Term – definition"
-    /([A-Z][a-z]+(?: [A-Z][a-z]+)*)[:\s]*[-–]\s*[A-Za-z0-9\s,.;:'"-]+/i,
-    /([A-Z][a-z]+(?: [A-Z][a-z]+)*):\s*[A-Za-z0-9\s,.;:'"-]+/i,
-    // "Term = definition" (e.g., "Higher CPC = more profitable")
-    /([A-Z][a-z]+(?: [A-Z][a-z]+)*)\s*=\s*[A-Za-z0-9\s,.;:'"-]+/i,
-  ];
+  // Blacklist of vague/meaningless terms that should never be flashcard fronts
+  const VAGUE_TERMS = new Set([
+    'users', 'user', 'customers', 'customer', 'people', 'website', 'web site',
+    'short', 'long', 'high', 'low', 'many', 'few', 'some', 'various',
+    'broad', 'narrow', 'big', 'small', 'good', 'bad', 'best', 'worst',
+    'click', 'search', 'result', 'results', 'page', 'pages', 'site',
+    'information', 'data', 'content', 'material', 'thing', 'things',
+    'the', 'a', 'an', 'this', 'that', 'these', 'those', 'it', 'they',
+    'seo', 'cpc', 'ppc', 'mofu', 'tofu', 'bofu' // Acronyms alone are too vague without explanation
+  ]);
 
-  // Filter sentences that contain a definition pattern
-  const candidateSentences = sentences.filter(sentence => {
-    return definitionPatterns.some(pattern => pattern.test(sentence));
-  });
-
-  console.log('Flashcard generation:', {
-    totalSentences: sentences.length,
-    candidateSentences: candidateSentences.length,
-  });
-
-  // Process candidate sentences to extract term (front) and keep full sentence (back)
-  for (let i = 0; i < Math.min(count, candidateSentences.length); i++) {
-    const sentence = candidateSentences[i];
-    if (usedSentences.has(sentence)) continue;
-
-    let front = '';
-
-    // Find the first pattern that yields a valid term
-    for (const pattern of definitionPatterns) {
-      const match = sentence.match(pattern);
-      if (match) {
-        let term = match[1].trim();
-        // Validate term: 2-50 chars, 1-5 words
-        const termWords = term.split(/\s+/);
-        if (term.length >= 2 && term.length <= 50 && termWords.length <= 5) {
-          front = term;
-          break;
-        }
-      }
-    }
-
-    // If no valid term found, skip this sentence (no fallback to avoid random cards)
-    if (!front) continue;
-
-    usedSentences.add(sentence);
-    flashcards.push({ front, back: sentence });
+  // Helper: Check if a term is too vague
+  function isVagueTerm(term) {
+    const lower = term.toLowerCase();
+    if (VAGUE_TERMS.has(lower)) return true;
+    if (term.length < 4) return true; // Very short words are usually too vague
+    if (/^\d+$/.test(term)) return true; // Just a number
+    return false;
   }
 
-  console.log('Flashcards generated:', flashcards.length);
+  // Helper: Extract complete noun phrase from start of sentence up to a definition connector
+  // This handles cases like: "Short-tail keywords are..." -> extract "Short-tail keywords"
+  function extractTerm(sentence) {
+    // Pattern 1: Term (is/means/are/was/were/refers to/called/defined as) definition
+    const pattern1 = /^([A-Z][a-z0-9]+(?:[-'][A-Z][a-z0-9]+)*\s+(?:and|or|with|in|of|for|to|the|a|an|is|are|was|were|means|refers\s+to|called|defined\s+as)\b)/i;
+    // Actually, let's get just the subject noun phrase before the verb
+    const subjectPattern = /^([A-Z][a-z0-9]+(?:[-'][A-Z][a-z0-9]+)*(?:\s+(?:[a-z]+|and|or|with|in|of|for|to|the|a|an)){0,4})\s+(?:is|are|was|were|means|refers\s+to|called|defined\s+as|=|:|-|–)\b/i;
+
+    // Pattern 2: Term: definition or Term - definition or Term = definition
+    const pattern2 = /^([A-Z][a-z0-9]+(?:[-'][A-Z][a-z0-9]+)*(?:\s+(?:[a-z]+|and|or|with|in|of|for|to|the|a|an)){0,4})\s*[:=–-]\s*/i;
+
+    let match = sentence.match(subjectPattern);
+    if (!match) {
+      match = sentence.match(pattern2);
+    }
+
+    if (match) {
+      let term = match[1].trim();
+      // Clean up trailing words like "the", "a", "an" if present
+      term = term.replace(/\s+(the|a|an)$/i, '').trim();
+      return term;
+    }
+
+    return null;
+  }
+
+  // Helper: Check if sentence is a definition (has definition connector)
+  function isDefinitionSentence(sentence) {
+    const definitionConnectors = /\b(is|are|was|were|means|refers\s+to|called|defined\s+as|[:=–-])\b/i;
+    return definitionConnectors.test(sentence);
+  }
+
+  // Process sentences
+  for (const sentence of sentences) {
+    if (usedSentences.has(sentence)) continue;
+    if (!isDefinitionSentence(sentence)) continue;
+
+    const term = extractTerm(sentence);
+    if (!term) continue;
+
+    // Validate term
+    if (term.length < 3 || term.length > 50) continue;
+    if (isVagueTerm(term)) continue;
+    const termWords = term.split(/\s+/);
+    if (termWords.length > 5) continue; // Too long for a "term"
+
+    // Ensure the definition actually explains the term (not just repeating it)
+    // Check that the definition portion contains more than just the term
+    const definitionPart = sentence.substring(sentence.indexOf(term) + term.length);
+    if (definitionPart.trim().length < term.length) continue; // Definition too short
+
+    usedSentences.add(sentence);
+    flashcards.push({ front: term, back: sentence });
+
+    if (flashcards.length >= count) break;
+  }
+
+  console.log('Flashcard generation stats:', {
+    totalSentences: sentences.length,
+    definitionSentences: sentences.filter(isDefinitionSentence).length,
+    flashcardsCreated: flashcards.length,
+  });
+
   return flashcards;
 }
 
