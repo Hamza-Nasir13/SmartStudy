@@ -129,13 +129,13 @@ Now generate exactly ${count} different flashcards:`;
 
     // If we got fewer than requested, that's okay - return what we have
     // But ensure we don't return more than count
-    const result = validFlashcards.slice(0, count);
+    const finalFlashcards = validFlashcards.slice(0, count);
 
-    if (result.length === 0) {
+    if (finalFlashcards.length === 0) {
       console.warn('All flashcards were filtered out. Raw data:', flashcards);
     }
 
-    return result;
+    return finalFlashcards;
 
   } catch (err) {
     console.error('Gemini flashcard generation failed:', err);
