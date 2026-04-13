@@ -106,28 +106,24 @@ const MyAccount = ({ user }) => {
 
   return (
     <div className="container" style={{ maxWidth: '600px', margin: '2rem auto' }}>
-      <div className="card">
+      <div className="card" style={{ padding: '2rem', lineHeight: '1.7' }}>
         <h2 className="mb-4" style={{ textAlign: 'center' }}>My Account</h2>
 
         {error && <div className="alert alert-danger">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
 
-        <div className="profile-section mb-4">
+        <div className="profile-section mb-4 style={{ marginBottom: '2rem' }}">
           <div className="profile-info">
             <h3>Profile Information</h3>
             <div className="d-flex justify-content-between align-items-center">
               <div>
-                <p><strong>Name:</strong> {profileData.name}</p>
-                <p><strong>Email:</strong> {profileData.email}</p>
+                <p style={{ marginBottom: '0.9rem' }}><strong>Name:</strong> {profileData.name}</p>
+                <p style={{ marginBottom: '0.9rem' }}><strong>Email:</strong> {profileData.email}</p>
               </div>
-              <div className="text-end">
-                <button type="button" className="btn btn-outline btn-primary btn-sm">
-                  Change Name
-                </button>
-              </div>
+              
             </div>
-            <p><strong>Account Created:</strong> {new Date(profileData.createdAt).toLocaleDateString()}</p>
-            <p><strong>Account Status:</strong>
+            <p style={{ marginBottom: '0.9rem' }}><strong>Account Created:</strong> {new Date(profileData.createdAt).toLocaleDateString()}</p>
+            <p style={{ marginBottom: '0.9rem' }}><strong>Account Status:</strong>
               <span className={`badge ${profileData.isPaid ? 'bg-success' : 'bg-secondary'}`}>
                 {profileData.isPaid ? 'Paid' : 'Free'}
               </span>
@@ -135,36 +131,12 @@ const MyAccount = ({ user }) => {
           </div>
         </div>
 
-        <div className="section mb-4">
-          <h3>Edit Profile</h3>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
-              <label htmlFor="updateName" className="form-label mb-0">New Name</label>
-              <input
-                type="text"
-                className="form-control"
-                id="updateName"
-                value={updateName}
-                onChange={(e) => setUpdateName(e.target.value)}
-                required
-                disabled={updating}
-              />
-            </div>
-            <button
-              type="button"
-              className="btn btn-outline btn-primary"
-              onClick={handleUpdateName}
-              disabled={updating || !updateName.trim()}
-            >
-              {updating ? 'Updating...' : 'Change Name'}
-            </button>
-          </div>
-        </div>
+        
 
-        <div className="section mb-4">
+        <div className="section mb-4 style={{ marginBottom: '2rem' }}">
           <div className="d-grid gap-2">
             <a href="/pricing">
-              <button className="btn btn-primary">
+              <button className="btn btn-primary btn-sm">
                 Upgrade Plan
               </button>
             </a>
@@ -175,7 +147,7 @@ const MyAccount = ({ user }) => {
           <h3>Account Actions</h3>
           <div className="d-grid gap-2">
             <button
-              className="btn btn-outline btn-danger"
+              className="btn btn-outline btn-danger btn-sm"
               onClick={handleDeleteAccount}
               disabled={deleting}
             >
