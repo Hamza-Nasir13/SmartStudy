@@ -229,17 +229,19 @@ const Login = ({ onLogin }) => {
               )}
             </>
           ) : !isLogin && !isPasswordReset && !isResetPassword ? (
-            <span>Already have an account? </span>
-            <button
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-                setFormData({ name: '', email: '', password: '' });
-              }}
-              className="btn btn-outline"
-            >
-              Login
-            </button>
+            <>
+              <span>Already have an account? </span>
+              <button
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError('');
+                  setFormData({ name: '', email: '', password: '' });
+                }}
+                className="btn btn-outline"
+              >
+                Login
+              </button>
+            </>
           ) : (
             <>
               <button

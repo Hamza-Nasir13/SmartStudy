@@ -6,16 +6,24 @@ const { body, validationResult } = require('express-validator');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
-// Configure nodemailer transporter
+// Configure nodemailer transporter with fallback
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
   port: process.env.EMAIL_PORT || 587,
   secure: false, // true for 465, false for other ports
   auth: {
-    user: process.env.EMAIL_USER || 'ethereal.test@example.com',
-    pass: process.env.EMAIL_PASS || 'ethereal.test.pass'
+    user: process.env.EMAIL_USER || '',
+    pass: process.env.EMAIL_PASS || ''
   }
 });
+
+// If email credentials are not set, create a transporter that doesn't actually send emails
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  transporter.sendMail = async () => {
+    console.log('Email credentials not configured - email simulation mode');
+    return { messageId: 'simulated' };
+  };
+}
 
 // Generate random bytes for reset token
 const generateResetToken = () => {
