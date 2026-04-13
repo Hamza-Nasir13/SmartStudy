@@ -8,7 +8,7 @@ import Quizzes from './pages/Quizzes';
 import Flashcards from './pages/Flashcards';
 import Pricing from './pages/Pricing';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api' + '/api';
+const API_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
 
 const App = () => {
   const [token, setToken] = useState(localStorage.getItem('token'));
