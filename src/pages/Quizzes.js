@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-const API_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
+import API from '../api';
 
 const Quizzes = ({ user }) => {
   const navigate = useNavigate();
@@ -36,7 +34,7 @@ const Quizzes = ({ user }) => {
 
   const fetchQuizzes = async () => {
     try {
-      const response = await axios.get(`${API_URL}/quizzes`);
+      const response = await API.get('/quizzes');
       setQuizzes(response.data);
     } catch (err) {
       console.error('Error fetching quizzes:', err);
@@ -57,7 +55,7 @@ const Quizzes = ({ user }) => {
     console.log('Generating quiz with data:', formData);
 
     try {
-      const response = await axios.post(`${API_URL}/quizzes/generate`, formData);
+      const response = await API.post('/quizzes/generate', formData);
       console.log('Quiz generation successful:', response.data);
       setCurrentQuiz(response.data.quiz);
       setShowForm(false);

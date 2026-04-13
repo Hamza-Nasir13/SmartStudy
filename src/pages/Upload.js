@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-const API_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
+import API from '../api';
 
 const Upload = ({ user }) => {
   const navigate = useNavigate();
@@ -22,7 +20,7 @@ const Upload = ({ user }) => {
 
   const fetchUsage = async () => {
     try {
-      const response = await axios.get(`${API_URL}/textbooks/usage`);
+      const response = await API.get('/textbooks/usage');
       setUsage(response.data.usage);
     } catch (err) {
       console.error('Error fetching usage:', err);
@@ -32,7 +30,7 @@ const Upload = ({ user }) => {
   const fetchTextbooks = async () => {
     setFetchingTextbooks(true);
     try {
-      const response = await axios.get(`${API_URL}/textbooks`);
+      const response = await API.get('/textbooks');
       console.log('Fetched textbooks:', response.data);
       setTextbooks(response.data);
     } catch (err) {
@@ -71,7 +69,7 @@ const Upload = ({ user }) => {
     formData.append('title', title);
 
     try {
-      await axios.post(`${API_URL}/textbooks/upload`, formData, {
+      await API.post('/textbooks/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -102,7 +100,7 @@ const Upload = ({ user }) => {
     }
 
     try {
-      const response = await axios.delete(`${API_URL}/textbooks/${textbookId}`);
+      const response = await API.delete(`/textbooks/${textbookId}`);
       setSuccess(response.data.message);
       setError('');
       await fetchTextbooks();

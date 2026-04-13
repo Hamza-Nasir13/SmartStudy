@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-const API_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
+import API from '../api';
 
 const Flashcards = ({ user }) => {
   const navigate = useNavigate();
@@ -35,7 +33,7 @@ const Flashcards = ({ user }) => {
 
   const fetchUsage = async () => {
     try {
-      const response = await axios.get(`${API_URL}/textbooks/usage`);
+      const response = await API.get('/textbooks/usage');
       setUsage(response.data.usage);
     } catch (err) {
       console.error('Error fetching usage:', err);
@@ -51,7 +49,7 @@ const Flashcards = ({ user }) => {
 
   const fetchFlashcards = async () => {
     try {
-      const response = await axios.get(`${API_URL}/flashcards`);
+      const response = await API.get('/flashcards');
       setFlashcards(response.data);
     } catch (err) {
       console.error('Error fetching flashcards:', err);
@@ -72,7 +70,7 @@ const Flashcards = ({ user }) => {
     console.log('Creating flashcard with data:', formData);
 
     try {
-      const response = await axios.post(`${API_URL}/flashcards/create`, formData);
+      const response = await API.post('/flashcards/create', formData);
       console.log('Flashcard creation successful:', response.data);
       setSuccess('Flashcard created successfully!');
       setFormData({ ...formData, front: '', back: '', category: '' });
@@ -103,7 +101,7 @@ const Flashcards = ({ user }) => {
     console.log('Generating flashcards with data:', requestData);
 
     try {
-      const response = await axios.post(`${API_URL}/flashcards/generate`, requestData);
+      const response = await API.post('/flashcards/generate', requestData);
       console.log('Flashcard generation successful:', response.data);
       setSuccess(response.data.message);
       setShowForm(false);
@@ -184,7 +182,7 @@ const Flashcards = ({ user }) => {
       const results = [];
       for (const id of selectedFlashcards) {
         try {
-          await axios.delete(`${API_URL}/flashcards/${id}`);
+          await API.delete(`/flashcards/${id}`);
           results.push({ id, success: true });
         } catch (err) {
           console.error(`Failed to delete flashcard ${id}:`, err);
@@ -220,7 +218,7 @@ const Flashcards = ({ user }) => {
   const deleteFlashcard = async (id) => {
     if (window.confirm('Are you sure you want to delete this flashcard?')) {
       try {
-        await axios.delete(`${API_URL}/flashcards/${id}`);
+        await API.delete(`/flashcards/${id}`);
         fetchFlashcards();
       } catch (err) {
         console.error('Error deleting flashcard:', {

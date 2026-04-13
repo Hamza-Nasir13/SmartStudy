@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
-import axios from 'axios';
+import API from './api';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Upload from './pages/Upload';
@@ -8,17 +8,15 @@ import Quizzes from './pages/Quizzes';
 import Flashcards from './pages/Flashcards';
 import Pricing from './pages/Pricing';
 
-const API_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
-
 const App = () => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
 
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
-      delete axios.defaults.headers.common['Authorization'];
+      delete API.defaults.headers.common['Authorization'];
     }
   }, [token]);
 
@@ -27,7 +25,7 @@ const App = () => {
     localStorage.setItem('user', JSON.stringify(userData));
     setToken(authToken);
     setUser(userData);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+    API.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
   };
 
   const logout = () => {
@@ -35,7 +33,7 @@ const App = () => {
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
+    delete API.defaults.headers.common['Authorization'];
   };
 
   const isAuthenticated = !!token;

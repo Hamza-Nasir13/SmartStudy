@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-
-const API_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
+import API from '../api';
 
 const Login = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -25,7 +23,7 @@ const Login = ({ onLogin }) => {
 
     try {
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const response = await axios.post(`${API_URL}${endpoint}`, formData);
+      const response = await API.post(endpoint, formData);
 
       onLogin(response.data.user, response.data.token);
     } catch (err) {
