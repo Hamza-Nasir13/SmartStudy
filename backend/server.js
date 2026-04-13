@@ -21,9 +21,23 @@ console.log('========================');
 const app = express();
 
 // Middleware
-app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://smart-study-rust.vercel.app',
+  origin: function (origin, callback) {
+    // allow mobile apps / postman
+    if (!origin) return callback(null, true);
+
+    // allow all Vercel preview deployments
+    if (origin.includes(".vercel.app")) {
+      return callback(null, true);
+    }
+
+    // allow production frontend (optional safety check)
+    if (origin === process.env.FRONTEND_URL) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
   credentials: true,
 }));
 app.use(express.json());
