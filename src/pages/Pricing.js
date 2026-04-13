@@ -22,7 +22,7 @@ const Pricing = ({ user }) => {
           <div style={{ fontSize: '2.5rem', fontWeight: 'bold', margin: '1rem 0', color: '#1f2937' }}>
             Rs 0
           </div>
-          <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>per month</p>
+          
           <ul style={{ textAlign: 'left', marginBottom: '2rem' }}>
             <li style={{ marginBottom: '0.75rem' }}>✅ 3 uploads (lifetime)</li>
             <li style={{ marginBottom: '0.75rem' }}>✅ 50 flashcards (lifetime)</li>
@@ -58,19 +58,13 @@ const Pricing = ({ user }) => {
           <h2 style={{ color: '#10b981', marginBottom: '1.5rem' }}>Premium Plan</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
             <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>
-              Rs 400/month
+              Rs 500/month
             </div>
-            <div style={{ fontSize: '1.2rem', color: '#6b7280' }}>
-              (billed annually)
-            </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#dc2626', marginTop: '0.5rem' }}>
-              Rs 600/month
-            </div>
-            <div style={{ fontSize: '1rem', color: '#6b7280' }}>
-              (billed monthly)
-            </div>
+            
+            
+            
           </div>
-          <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>per month</p>
+          
           <ul style={{ textAlign: 'left', marginBottom: '2rem' }}>
             <li style={{ marginBottom: '0.75rem' }}>✅ Unlimited uploads</li>
             <li style={{ marginBottom: '0.75rem' }}>✅ Unlimited flashcards</li>
