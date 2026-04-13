@@ -1,100 +1,153 @@
-Current Issue
+# 🚀 Feature Implementation Prompt (Full-Stack MERN App)
 
-The frontend is incorrectly calling backend authentication routes and missing the /api prefix.
+You are working on a full-stack MERN application (React frontend + Node/Express backend + MongoDB).
 
-This is causing 404 errors like:
+Your task is to implement new user management features and fix existing authentication bugs.
 
-/auth/login → 404 Not Found
-/auth/register → 404 Not Found
+---
 
-But the backend routes are correctly defined as:
+# 🎯 OBJECTIVES
 
-/api/auth/login
-/api/auth/register
-🎯 Goal
+## 1. 🔐 Forgot Password + Reset Password System
 
-Fix all frontend API routing so that:
+Implement a secure password reset flow:
 
-All API requests correctly target the backend
-All auth routes use /api/auth/...
-No request is sent without the /api prefix
-Remove any duplicated or inconsistent API base URL logic
-Ensure consistency across all pages (Login, Register, Upload, Quizzes, Flashcards, etc.)
-🧠 Required Refactor
-1. Standardize API base URL
+### Flow:
+1. User clicks **"Forgot Password?"**
+2. User enters email
+3. Backend generates a **secure, time-limited reset token**
+4. Email is sent to user with a reset link:
 
-Create or update a single API configuration pattern:
+https://<frontend-url>/reset-password/<token>
 
-Base URL must always be:
-process.env.REACT_APP_API_URL + "/api"
-fallback: http://localhost:5000/api
+5. User enters new password
+6. Password is hashed (bcrypt) and updated in MongoDB
 
-Do NOT duplicate /api anywhere else.
+---
 
-2. Fix all API calls
+### Backend Requirements:
 
-Find and update ALL occurrences of:
+Create these endpoints:
 
-/auth/login
-/auth/register
-/auth/*
-any direct axios calls that bypass API_URL
+#### POST `/api/auth/forgot-password`
+- Accept email
+- Check if user exists
+- Generate reset token (crypto random or JWT)
+- Store hashed token + expiry in DB
+- Send email with reset link
 
-Convert them to:
+#### POST `/api/auth/reset-password/:token`
+- Validate token + expiry
+- Hash new password using bcrypt
+- Update user password
+- Clear reset token fields
 
-axios.post(`${API_URL}/auth/login`, data);
-axios.post(`${API_URL}/auth/register`, data);
+---
 
-OR (preferred cleaner approach):
+### Email:
+Use a simple email service (nodemailer or existing provider in project).
 
-Create a central axios instance:
+---
 
-const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL + "/api"
-});
+# 👤 2. My Account Page (Frontend + Backend Support)
 
-And replace all calls with:
+Create a **My Account page** where users can:
 
-API.post("/auth/login", data);
-API.post("/auth/register", data);
-3. Remove inconsistent patterns
+## Features:
 
-Search and eliminate:
+### ✅ View Profile
+- Username
+- Email
+- Account status:
+- Paid
+- Free
 
-any hardcoded backend URLs
-any missing /api usage
-duplicate /api/api risks
-inconsistent API_URL definitions across files
-4. Files to check especially:
-Login.js
-Register logic (if separate)
-Upload.js
-Quizzes.js
-Flashcards.js
-App.js or any API helper files
-🧪 Validation Requirement
+---
 
-After changes:
+### ✏️ Edit Username
+- Allow user to update username
+- Backend endpoint:
 
-Login request must go to:
+PUT /api/user/update-profile
 
-https://<backend>/api/auth/login
 
-Register request must go to:
+---
 
-https://<backend>/api/auth/register
+### 💳 Subscription Section
+Show:
+- Current plan status (Free / Paid)
+- Buttons:
+- Upgrade Plan
+- View Plans
 
-No requests should hit:
+Plans:
+- Free: limited usage
+- Paid Monthly
+- Paid Annual
 
-/auth/login ❌
-/auth/register ❌
-✅ Output expectation
-Clean refactored API structure
-No duplicate /api usage
-Centralized API handling (preferred)
-No breaking changes to UI
-Fully working authentication flow
-⚠️ Important
+---
 
-Do not change backend code unless absolutely necessary.
-Only fix frontend routing and API structure.
+### 🚪 Logout
+- Clear JWT token
+- Redirect to login
+
+---
+
+### 🗑️ Delete Account
+- Confirmation modal required
+- Backend endpoint:
+
+DELETE /api/user/delete-account
+
+- Remove user from MongoDB completely
+
+---
+
+# 🧠 3. Fix Registration 400 Errors
+
+Currently, registration sometimes returns:
+
+
+400 Bad Request
+
+
+## Required Fixes:
+
+### Backend validation must be improved:
+- Ensure all required fields are validated properly
+- Return clear error messages:
+  - missing email
+  - invalid email format
+  - password too short
+  - user already exists
+
+---
+
+### Frontend fixes:
+- Display backend error messages properly
+- Prevent empty form submission
+- Add loading state during request
+
+---
+
+### Improve `/api/auth/register`:
+
+Must ensure:
+- Email uniqueness check
+- Password hashing with bcrypt
+- Proper status codes:
+  - 201 → success
+  - 400 → validation error
+  - 409 → user already exists
+
+---
+
+# 🧩 DATABASE CHANGES (if required)
+
+Update User model to include:
+
+```js
+resetPasswordToken: String,
+resetPasswordExpires: Date,
+isPaid: Boolean,
+plan: String

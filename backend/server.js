@@ -59,6 +59,7 @@ app.use('/api/textbooks', require('./routes/textbooks'));
 app.use('/api/quizzes', require('./routes/quizzes'));
 app.use('/api/flashcards', require('./routes/flashcards'));
 app.use('/api/payment', require('./routes/payment'));
+app.use('/api/user', require('./routes/user'));
 
 // Health check
 app.get('/api/health', (req, res) => {

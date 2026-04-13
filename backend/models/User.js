@@ -24,6 +24,16 @@ const userSchema = new mongoose.Schema({
     enum: ['free', 'premium'],
     default: 'free',
   },
+  isPaid: {
+    type: Boolean,
+    default: false,
+  },
+  resetPasswordToken: {
+    type: String,
+  },
+  resetPasswordExpires: {
+    type: Date,
+  },
   usage: {
     uploads_used: {
       type: Number,

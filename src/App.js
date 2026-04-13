@@ -7,6 +7,7 @@ import Upload from './pages/Upload';
 import Quizzes from './pages/Quizzes';
 import Flashcards from './pages/Flashcards';
 import Pricing from './pages/Pricing';
+import MyAccount from './pages/MyAccount';
 
 const App = () => {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -53,6 +54,7 @@ const App = () => {
                 <li><Link to="/quizzes">Quizzes</Link></li>
                 <li><Link to="/flashcards">Flashcards</Link></li>
                 <li><Link to="/pricing">Pricing</Link></li>
+                <li><Link to="/my-account">My Account</Link></li>
                 <li><button onClick={logout} className="btn btn-outline" style={{ padding: '8px 16px' }}>Logout</button></li>
               </ul>
             </>
@@ -96,6 +98,12 @@ const App = () => {
           path="/pricing"
           element={
             isAuthenticated ? <Pricing user={user} /> : <Navigate to="/login" />
+          }
+        />
+        <Route
+          path="/my-account"
+          element={
+            isAuthenticated ? <MyAccount user={user} /> : <Navigate to="/login" />
           }
         />
       </Routes>
