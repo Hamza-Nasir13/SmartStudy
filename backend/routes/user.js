@@ -23,7 +23,7 @@ const authenticate = (req, res, next) => {
 };
 
 // Get user profile
-router.get('/profile', authenticate, async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('-password');
     if (!user) {

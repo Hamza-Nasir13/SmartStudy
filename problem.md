@@ -1,153 +1,149 @@
-# 🚀 Feature Implementation Prompt (Full-Stack MERN App)
+# 🚀 Bug Fix + UI Improvement Prompt (MERN App)
 
 You are working on a full-stack MERN application (React frontend + Node/Express backend + MongoDB).
 
-Your task is to implement new user management features and fix existing authentication bugs.
+Your task is to fix API errors and improve UI consistency across the account and pricing system without breaking existing authentication.
 
 ---
 
-# 🎯 OBJECTIVES
+# 🚨 1. Fix MyAccount.js 404 Error (Critical)
 
-## 1. 🔐 Forgot Password + Reset Password System
+## Issue:
+In `MyAccount.js` line 28, the app is trying to fetch account data but is returning:
 
-Implement a secure password reset flow:
 
-### Flow:
-1. User clicks **"Forgot Password?"**
-2. User enters email
-3. Backend generates a **secure, time-limited reset token**
-4. Email is sent to user with a reset link:
-
-https://<frontend-url>/reset-password/<token>
-
-5. User enters new password
-6. Password is hashed (bcrypt) and updated in MongoDB
-
----
-
-### Backend Requirements:
-
-Create these endpoints:
-
-#### POST `/api/auth/forgot-password`
-- Accept email
-- Check if user exists
-- Generate reset token (crypto random or JWT)
-- Store hashed token + expiry in DB
-- Send email with reset link
-
-#### POST `/api/auth/reset-password/:token`
-- Validate token + expiry
-- Hash new password using bcrypt
-- Update user password
-- Clear reset token fields
-
----
-
-### Email:
-Use a simple email service (nodemailer or existing provider in project).
-
----
-
-# 👤 2. My Account Page (Frontend + Backend Support)
-
-Create a **My Account page** where users can:
-
-## Features:
-
-### ✅ View Profile
-- Username
-- Email
-- Account status:
-- Paid
-- Free
-
----
-
-### ✏️ Edit Username
-- Allow user to update username
-- Backend endpoint:
-
-PUT /api/user/update-profile
+404 Not Found
 
 
 ---
 
-### 💳 Subscription Section
-Show:
-- Current plan status (Free / Paid)
-- Buttons:
-- Upgrade Plan
-- View Plans
+## 🎯 Required Fix:
 
-Plans:
-- Free: limited usage
-- Paid Monthly
-- Paid Annual
+### Backend endpoint mismatch:
+Ensure frontend is calling the correct endpoint:
+
+Correct API endpoint:
+
+GET /api/user/me
+
+
+NOT:
+
+/user/me ❌
+/account ❌
+/auth/me ❌
+
 
 ---
 
-### 🚪 Logout
-- Clear JWT token
-- Redirect to login
+## 🔧 Fix Requirements:
+
+- Ensure API base URL includes `/api`
+- Ensure request uses correct JWT auth header
+- Ensure backend route exists and matches frontend call
 
 ---
 
-### 🗑️ Delete Account
-- Confirmation modal required
-- Backend endpoint:
+## Expected working call:
+```js id="myacc1"
+axios.get(`${API_URL}/user/me`);
 
-DELETE /api/user/delete-account
+OR (preferred):
 
-- Remove user from MongoDB completely
+API.get("/user/me");
+🎨 2. Improve MyAccount UI (IMPORTANT UX UPDATE)
+Goal:
 
----
+Make the MyAccount page cleaner, less cluttered, and more modern.
 
-# 🧠 3. Fix Registration 400 Errors
+✨ UI Changes Required:
+1. Rename button:
+Change:
+Update Name
+To:
+Change Name
+2. Button positioning:
+Make "Change Name" button:
+Smaller
+Inline (next to username field or aligned right)
+Not taking full width
+3. Improve spacing:
+Increase line spacing between sections
+Add better padding between:
+Profile section
+Account status
+Actions section
+4. Remove incorrect plan display:
+DO NOT show plan breakdown inside MyAccount
 
-Currently, registration sometimes returns:
+Remove:
 
+Free / Premium breakdown UI inside MyAccount
+5. Replace with single CTA:
 
-400 Bad Request
+Instead of showing plans, replace with:
 
+Button:
+Upgrade Plan
+Behavior:
+Redirect to:
+/pricing
+💳 3. Fix Pricing Page (Simplification)
+Issue:
 
-## Required Fixes:
+Pricing page currently shows multiple confusing tiers:
 
-### Backend validation must be improved:
-- Ensure all required fields are validated properly
-- Return clear error messages:
-  - missing email
-  - invalid email format
-  - password too short
-  - user already exists
+400 Rs monthly (annual billed)
+600 Rs monthly
+multiple plan variations
+🎯 Required Change:
+Replace the Premium Pricing tiers with ONE simple plan:
+💎 Premium Plan
+500 Rs / month
+Unlimited usage
+UI Requirements:
+Remove the Premium Pricing tier banner
 
----
+Add label:
 
-### Frontend fixes:
-- Display backend error messages properly
-- Prevent empty form submission
-- Add loading state during request
+Most Popular
+Button:
+Subscribe Now
+🔗 4. Navigation Requirement
 
----
+From MyAccount page:
 
-### Improve `/api/auth/register`:
+"Upgrade Plan" button must redirect to:
+/pricing
+🧠 5. Data/API Consistency Requirements
 
-Must ensure:
-- Email uniqueness check
-- Password hashing with bcrypt
-- Proper status codes:
-  - 201 → success
-  - 400 → validation error
-  - 409 → user already exists
+Ensure all API calls use:
 
----
+/api/user/me
+Ensure no 404 errors from:
+incorrect routes
+missing /api prefix
+outdated endpoints
+🎯 6. UX GOAL
 
-# 🧩 DATABASE CHANGES (if required)
+After changes:
 
-Update User model to include:
-
-```js
-resetPasswordToken: String,
-resetPasswordExpires: Date,
-isPaid: Boolean,
-plan: String
+MyAccount page should:
+Look clean and modern
+Have minimal clutter
+Focus on account status + actions only
+Pricing page should:
+Be simple
+Have one clear plan
+Be easy to understand in under 5 seconds
+⚠️ IMPORTANT
+Do NOT break authentication flow
+Do NOT change backend unless required
+Keep existing login/register system intact
+Only fix UI + routing + API consistency issues
+🚀 SUCCESS CRITERIA
+No 404 errors in MyAccount page
+Clean modern MyAccount UI
+Pricing page simplified to one plan (500 Rs/month)
+Smooth navigation between MyAccount and Pricing
+Fully working API integration

@@ -25,7 +25,7 @@ const MyAccount = ({ user }) => {
 
     try {
       setLoading(true);
-      const response = await API.get('/api/user/profile');
+      const response = await API.get('/user/me');
       setProfileData({
         name: response.data.user.name,
         email: response.data.user.email,
@@ -55,7 +55,7 @@ const MyAccount = ({ user }) => {
     setSuccess('');
 
     try {
-      const response = await API.put('/api/user/update-profile', { name: updateName });
+      const response = await API.put('/user/update-profile', { name: updateName });
       setProfileData(prev => ({ ...prev, name: response.data.user.name }));
       setSuccess('Profile updated successfully');
       setUpdateName(response.data.user.name);
@@ -80,7 +80,7 @@ const MyAccount = ({ user }) => {
     setSuccess('');
 
     try {
-      await API.delete('/api/user/delete-account');
+      await API.delete('/user/delete-account');
       // Clear local storage and redirect would be handled by parent component
       // For now, we'll show success message
       setSuccess('Account deleted successfully');
@@ -112,11 +112,20 @@ const MyAccount = ({ user }) => {
         {error && <div className="alert alert-danger">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
 
-        <div className="profile-section">
+        <div className="profile-section mb-4">
           <div className="profile-info">
             <h3>Profile Information</h3>
-            <p><strong>Name:</strong> {profileData.name}</p>
-            <p><strong>Email:</strong> {profileData.email}</p>
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <p><strong>Name:</strong> {profileData.name}</p>
+                <p><strong>Email:</strong> {profileData.email}</p>
+              </div>
+              <div className="text-end">
+                <button type="button" className="btn btn-outline btn-primary btn-sm">
+                  Change Name
+                </button>
+              </div>
+            </div>
             <p><strong>Account Created:</strong> {new Date(profileData.createdAt).toLocaleDateString()}</p>
             <p><strong>Account Status:</strong>
               <span className={`badge ${profileData.isPaid ? 'bg-success' : 'bg-secondary'}`}>
@@ -128,9 +137,9 @@ const MyAccount = ({ user }) => {
 
         <div className="section mb-4">
           <h3>Edit Profile</h3>
-          <form onSubmit={handleUpdateName}>
-            <div className="mb-3">
-              <label htmlFor="updateName" className="form-label">New Name</label>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <label htmlFor="updateName" className="form-label mb-0">New Name</label>
               <input
                 type="text"
                 className="form-control"
@@ -141,50 +150,24 @@ const MyAccount = ({ user }) => {
                 disabled={updating}
               />
             </div>
-            <button type="submit" className="btn btn-primary w-100" disabled={updating}>
-              {updating ? 'Updating...' : 'Update Name'}
+            <button
+              type="button"
+              className="btn btn-outline btn-primary"
+              onClick={handleUpdateName}
+              disabled={updating || !updateName.trim()}
+            >
+              {updating ? 'Updating...' : 'Change Name'}
             </button>
-          </form>
+          </div>
         </div>
 
         <div className="section mb-4">
-          <h3>Subscription</h3>
-          <div className="subscription-info">
-            <p><strong>Current Plan:</strong>
-              <span className={`badge ${profileData.plan === 'premium' ? 'bg-success' : 'bg-info'}`}>
-                {profileData.plan === 'premium' ? 'Premium' : 'Free'}
-              </span>
-            </p>
-            <p>{profileData.plan === 'free' ?
-              'Limited to 3 textbook uploads and 50 flashcards per month' :
-              'Unlimited textbook uploads and flashcard generation'}
-            </p>
-          </div>
-
           <div className="d-grid gap-2">
-            {profileData.plan === 'free' && (
-              <>
-                <button className="btn btn-outline btn-primary" style={{ marginBottom: '8px' }}>
-                  Upgrade to Premium Monthly ($9.99/month)
-                </button>
-                <button className="btn btn-outline btn-primary" style={{ marginBottom: '8px' }}>
-                  Upgrade to Premium Annual ($99.99/year)
-                </button>
-                <button className="btn btn-link">
-                  View All Plans
-                </button>
-              </>
-            )}
-            {profileData.plan === 'premium' && (
-              <>
-                <button className="btn btn-outline btn-success">
-                  Manage Subscription
-                </button>
-                <button className="btn btn-link">
-                  View Plans
-                </button>
-              </>
-            )}
+            <a href="/pricing">
+              <button className="btn btn-primary">
+                Upgrade Plan
+              </button>
+            </a>
           </div>
         </div>
 
