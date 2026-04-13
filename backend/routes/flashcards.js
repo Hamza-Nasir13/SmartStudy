@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const Flashcard = require('../models/Flashcard');
 const Textbook = require('../models/Textbook');
+const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { generateFlashcardsWithGemini } = require('../services/geminiService');
+const { checkFlashcardLimit, checkBulkFlashcardLimit, incrementFlashcardCounter } = require('../middleware/limitChecker');
 
 const authenticate = async (req, res, next) => {
   try {
@@ -124,7 +126,7 @@ function generateFlashcardsHeuristic(text, count = 10, existingConcepts = []) {
 }
 
 // Create flashcard manually
-router.post('/create', authenticate, [
+router.post('/create', authenticate, checkFlashcardLimit, [
   body('front').notEmpty().trim(),
   body('back').notEmpty().trim(),
   body('category').optional().trim(),
@@ -146,6 +148,9 @@ router.post('/create', authenticate, [
     });
 
     await flashcard.save();
+
+    // Increment flashcard counter (usage never decreases)
+    await incrementFlashcardCounter(req.userId, 1);
 
     res.status(201).json({
       message: 'Flashcard created successfully',
@@ -178,6 +183,12 @@ router.post('/generate', authenticate, [
     if (!textbook) {
       console.error('Textbook not found for flashcard generation:', { textbookId });
       return res.status(404).json({ message: 'Textbook not found' });
+    }
+
+    // Check flashcard limit for free tier users (accounting for bulk creation)
+    const limitCheck = await checkBulkFlashcardLimit(req.userId, count);
+    if (limitCheck) {
+      return res.status(limitCheck.status).json(limitCheck);
     }
 
     // Fetch existing flashcard fronts to avoid duplicates
@@ -244,6 +255,11 @@ router.post('/generate', authenticate, [
       }))
     );
 
+    // Increment flashcard counter by the number of flashcards created (usage never decreases)
+    if (flashcards.length > 0) {
+      await incrementFlashcardCounter(req.userId, flashcards.length);
+    }
+
     res.status(201).json({
       message: `Generated ${flashcards.length} flashcards`,
       flashcards,
@@ -283,6 +299,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 
     await Flashcard.findByIdAndDelete(req.params.id);
 
+    // Note: Usage is lifetime-based and never decreases
     console.log('Flashcard deleted:', req.params.id);
     res.json({ message: 'Flashcard deleted successfully' });
   } catch (err) {

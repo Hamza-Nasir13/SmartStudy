@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Upload from './pages/Upload';
 import Quizzes from './pages/Quizzes';
 import Flashcards from './pages/Flashcards';
+import Pricing from './pages/Pricing';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -53,12 +54,14 @@ const App = () => {
                 <li><Link to="/upload">Upload Textbook</Link></li>
                 <li><Link to="/quizzes">Quizzes</Link></li>
                 <li><Link to="/flashcards">Flashcards</Link></li>
+                <li><Link to="/pricing">Pricing</Link></li>
                 <li><button onClick={logout} className="btn btn-outline" style={{ padding: '8px 16px' }}>Logout</button></li>
               </ul>
             </>
           ) : (
             <ul className="nav-links">
               <li><Link to="/">Home</Link></li>
+              <li><Link to="/pricing">Pricing</Link></li>
               <li><Link to="/login">Login</Link></li>
             </ul>
           )}
@@ -89,6 +92,12 @@ const App = () => {
           path="/flashcards"
           element={
             isAuthenticated ? <Flashcards user={user} /> : <Navigate to="/login" />
+          }
+        />
+        <Route
+          path="/pricing"
+          element={
+            isAuthenticated ? <Pricing user={user} /> : <Navigate to="/login" />
           }
         />
       </Routes>

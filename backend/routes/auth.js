@@ -3,6 +3,18 @@ const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
+const nodemailer = require('nodemailer');
+
+// Configure nodemailer transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
+  port: process.env.EMAIL_PORT || 587,
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: process.env.EMAIL_USER || 'ethereal.test@example.com',
+    pass: process.env.EMAIL_PASS || 'ethereal.test.pass'
+  }
+});
 
 // Register
 router.post('/register', [
@@ -26,11 +38,36 @@ router.post('/register', [
     const user = new User({ email, password, name });
     await user.save();
 
+    // Send welcome email
+    try {
+      await transporter.sendMail({
+        from: '"AI Smart Study App" <noreply@smartstudy.app>', // sender address
+        to: user.email, // list of receivers
+        subject: "Welcome to AI Smart Study App 🎓", // Subject line
+        text: `
+Hi ${user.name},
+
+Thank you for signing up!
+
+We're excited to help you study smarter and save time.
+
+Get started by uploading your first textbook and generating your study material instantly.
+
+Best,
+AI Smart Study Team
+        `, // plain text body
+      });
+      console.log('Welcome email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Error sending welcome email:', emailError);
+      // Don't fail registration if email fails
+    }
+
     const token = user.generateAuthToken();
 
     res.status(201).json({
       message: 'User registered successfully',
-      user: { id: user._id, email: user.email, name: user.name },
+      user: { id: user._id, email: user.email, name: user.name, plan: user.plan },
       token,
     });
   } catch (err) {
@@ -66,7 +103,7 @@ router.post('/login', [
 
     res.json({
       message: 'Login successful',
-      user: { id: user._id, email: user.email, name: user.name },
+      user: { id: user._id, email: user.email, name: user.name, plan: user.plan },
       token,
     });
   } catch (err) {

@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const Textbook = require('../models/Textbook');
-const User = require('../models/User');
 const pdfParse = require('pdf-parse');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
@@ -77,99 +76,75 @@ const handleMulterError = (err, req, res, next) => {
   next(err);
 };
 
-// Import limit checker middleware
-const { checkPdfUploadLimit, incrementUploadCounter } = require('../middleware/limitChecker');
-
 // Upload textbook
-router.post(
-  '/upload',
-  authenticate,
-  checkPdfUploadLimit,
-  upload.single('file'),
-  handleMulterError,
-  async (req, res) => {
-    let tempFilePath;
+router.post('/upload', authenticate, upload.single('file'), handleMulterError, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const { title } = req.body;
+    if (!title) {
+      return res.status(400).json({ message: 'Title is required' });
+    }
+
+    console.log(`Processing upload: ${req.file.originalname} (${(req.file.size / (1024 * 1024)).toFixed(2)}MB)`);
+    const tempFilePath = req.file.path;
+
+    let extractedText;
+    let filePath = null;
 
     try {
-      // ✅ Validate input
-      if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-      }
-
-      const { title } = req.body;
-      if (!title) {
-        return res.status(400).json({ message: 'Title is required' });
-      }
-
-      tempFilePath = req.file.path;
-
-      console.log(
-        `Processing upload: ${req.file.originalname} (${(
-          req.file.size /
-          (1024 * 1024)
-        ).toFixed(2)}MB)`
-      );
-
-      // =========================
-      // STEP 1: Extract Text
-      // =========================
+      // Step 1: Extract text from PDF
       console.log('Starting PDF text extraction...');
-
-      let extractedText;
-
       try {
         const data = await pdfParse(tempFilePath);
         extractedText = data.text;
-      } catch (err) {
-        console.warn('Retrying PDF parse with buffer...');
+      } catch (pdfErr) {
+        console.error('PDF parse error (first attempt):', pdfErr);
+        // Fallback: try reading the file into buffer
+        console.log('Retrying with buffer method...');
         const fileBuffer = fs.readFileSync(tempFilePath);
         const data = await pdfParse(fileBuffer);
         extractedText = data.text;
       }
 
-      if (!extractedText || extractedText.trim().length === 0) {
-        return res.status(400).json({
-          message:
-            'No text could be extracted. This may be a scanned/image-based PDF (OCR required).',
-        });
-      }
-
-      console.log('PDF extraction successful:', {
+      console.log(`PDF text extraction successful for ${req.file.originalname}:`, {
         textLength: extractedText.length,
+        preview: extractedText.substring(0, 200) + '...'
       });
 
-      // =========================
-      // STEP 2: Upload to Cloudinary
-      // =========================
-      console.log('Uploading to Cloudinary...');
+      if (!extractedText || extractedText.trim().length === 0) {
+        throw new Error('No text could be extracted from PDF');
+      }
 
+      // Step 2: Upload PDF to Cloudinary - stream from disk
+      console.log('Starting Cloudinary upload...');
       const uploadResult = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
             resource_type: 'raw',
             folder: 'smartstudy/textbooks',
-            public_id:
-              Date.now() +
-              '-' +
-              req.file.originalname.replace(/\.[^/.]+$/, ''),
+            public_id: Date.now() + '-' + req.file.originalname.replace(/\.[^/.]+$/, ''),
           },
           (error, result) => {
-            if (error) return reject(error);
-            resolve(result);
+            if (error) {
+              console.error('Cloudinary stream error:', error);
+              reject(error);
+            } else {
+              console.log('Cloudinary upload successful:', result.secure_url);
+              resolve(result);
+            }
           }
         );
-
-        fs.createReadStream(tempFilePath).pipe(stream);
+        // Stream the file from disk
+        const fileStream = fs.createReadStream(tempFilePath);
+        fileStream.pipe(stream);
       });
+      filePath = uploadResult.secure_url;
 
-      const filePath = uploadResult.secure_url;
-
-      console.log('Cloudinary upload successful:', filePath);
-
-      // =========================
-      // STEP 3: Save to DB
-      // =========================
-      const textbook = await Textbook.create({
+      // Step 3: Save textbook to database
+      const textbook = new Textbook({
         userId: req.userId,
         title,
         filename: req.file.originalname,
@@ -177,16 +152,9 @@ router.post(
         extractedText,
       });
 
-      // =========================
-      // STEP 4: Increment Counter
-      // =========================
-      // Increment upload counter (usage never decreases)
-      await incrementUploadCounter(req.userId);
+      await textbook.save();
 
-      // =========================
-      // STEP 5: Send Response
-      // =========================
-      return res.status(201).json({
+      res.status(201).json({
         message: 'Textbook uploaded successfully',
         textbook: {
           id: textbook._id,
@@ -199,28 +167,71 @@ router.post(
     } catch (err) {
       console.error('Upload error:', err);
 
+      // Determine error type and respond accordingly
+      if (err.message === 'No text could be extracted from PDF') {
+        return res.status(400).json({
+          message: 'No text could be extracted from this PDF. The file may be an image-based or scanned PDF that requires OCR.'
+        });
+      }
+
       return res.status(500).json({
-        message: 'Upload failed. Please try again.',
-        details:
-          process.env.NODE_ENV === 'development'
-            ? err.message
-            : undefined,
+        message: 'Failed to upload file to cloud storage. The file may be too large or there may be a network issue.',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
       });
     } finally {
-      // =========================
-      // CLEANUP (always runs)
-      // =========================
-      if (tempFilePath && fs.existsSync(tempFilePath)) {
+      // Clean up temp file - ensure it's deleted after ALL operations
+      if (fs.existsSync(tempFilePath)) {
         try {
           fs.unlinkSync(tempFilePath);
-          console.log('Temp file cleaned up');
-        } catch (err) {
-          console.error('Failed to delete temp file:', err);
+          console.log(`Cleaned up temp file: ${tempFilePath}`);
+        } catch (unlinkErr) {
+          console.error('Failed to delete temp file:', unlinkErr);
         }
       }
     }
+
+    const textbook = new Textbook({
+      userId: req.userId,
+      title,
+      filename: req.file.originalname,
+      filePath, // Cloudinary URL
+      extractedText,
+    });
+
+    await textbook.save();
+
+    // Send success response and RETURN to prevent further execution
+    return res.status(201).json({
+      message: 'Textbook uploaded successfully',
+      textbook: {
+        id: textbook._id,
+        title: textbook.title,
+        filename: textbook.filename,
+        textLength: extractedText.length,
+        filePath,
+      },
+    });
+  } catch (err) {
+    console.error('Upload error:', err);
+
+    // Only send error response if headers haven't been sent yet
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: 'Error processing file',
+        error: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      });
+    } else {
+      // Headers already sent, cannot respond to client
+      console.error('Cannot send error response - headers already sent');
+    }
+    res.status(500).json({
+      message: 'Error processing file',
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
   }
-);
+});
 
 // Delete textbook
 router.delete('/:id', authenticate, async (req, res) => {
@@ -253,7 +264,6 @@ router.delete('/:id', authenticate, async (req, res) => {
 
     await Textbook.findByIdAndDelete(req.params.id);
 
-    // Note: Usage is lifetime-based and never decreases
     console.log('Textbook deleted:', textbook._id);
     res.json({ message: 'Textbook deleted successfully' });
   } catch (err) {
@@ -271,27 +281,6 @@ router.get('/', authenticate, async (req, res) => {
     const textbooks = await Textbook.find({ userId: req.userId })
       .sort({ uploadedAt: -1 });
     res.json(textbooks);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get user's usage stats
-router.get('/usage', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.json({
-      plan: user.plan,
-      usage: user.usage,
-      limits: {
-        uploads: user.plan === 'premium' ? null : 3,
-        flashcards: user.plan === 'premium' ? null : 50
-      }
-    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

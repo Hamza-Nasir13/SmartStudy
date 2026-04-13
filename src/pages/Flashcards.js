@@ -26,10 +26,21 @@ const Flashcards = ({ user }) => {
   const [studyMode, setStudyMode] = useState(false);
   const [selectedFlashcards, setSelectedFlashcards] = useState([]); // Array of IDs
   const [selectAll, setSelectAll] = useState(false);
+  const [usage, setUsage] = useState({ uploads_used: 0, flashcards_generated: 0 });
 
   useEffect(() => {
     fetchFlashcards();
+    fetchUsage();
   }, []);
+
+  const fetchUsage = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/textbooks/usage`);
+      setUsage(response.data.usage);
+    } catch (err) {
+      console.error('Error fetching usage:', err);
+    }
+  };
 
   // Sync textbookId from URL with formData
   useEffect(() => {
@@ -281,6 +292,53 @@ const Flashcards = ({ user }) => {
 
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
+
+      {/* Usage Indicator */}
+      <div style={{
+        backgroundColor: '#f0f9ff',
+        border: '1px solid #bae6fd',
+        borderRadius: '8px',
+        padding: '1rem',
+        marginBottom: '1.5rem'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontWeight: '600', color: '#1e40af' }}>Flashcards Used:</span>
+          <span style={{
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            color: usage.flashcards_generated >= 50 ? '#dc2626' : usage.flashcards_generated >= 40 ? '#d97706' : '#059669'
+          }}>
+            {usage.flashcards_generated} / 50
+          </span>
+        </div>
+        {usage.flashcards_generated >= 40 && usage.flashcards_generated < 50 && (
+          <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#d97706' }}>
+            ⚠️ You're close to your limit! Only {50 - usage.flashcards_generated} flashcards remaining.
+          </p>
+        )}
+        {usage.flashcards_generated >= 50 && (
+          <>
+            <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#dc2626' }}>
+              ❌ Flashcard limit reached. You've generated all 50 flashcards.
+            </p>
+            <button
+              onClick={() => window.location.href = '/pricing'}
+              style={{
+                marginTop: '0.5rem',
+                padding: '0.5rem 1rem',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                cursor: 'pointer'
+              }}
+            >
+              Upgrade to Premium
+            </button>
+          </>
+        )}
+      </div>
 
       {showForm ? (
         <div className="card">

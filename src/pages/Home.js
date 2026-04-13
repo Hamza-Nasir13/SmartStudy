@@ -5,21 +5,33 @@ const Home = ({ user, isAuthenticated }) => {
   return (
     <div>
       <section className="hero">
-        <h1>🎓 SmartStudy</h1>
-        <p>Transform your textbooks into personalized quizzes and flashcards powered by AI</p>
-        {isAuthenticated ? (
-          <Link to="/upload" className="btn btn-primary" style={{ marginRight: '1rem' }}>
-            Get Started
-          </Link>
-        ) : (
-          <Link to="/login" className="btn btn-primary" style={{ marginRight: '1rem' }}>
-            Start Learning
-          </Link>
-        )}
+        <h1>SmartStudy</h1>
+        <p>Transform your textbooks into personalized quizzes and flashcards</p>
+        <div className="hero-actions">
+          {isAuthenticated ? (
+            <>
+              <Link to="/upload" className="btn btn-primary">
+                Get Started
+              </Link>
+              <Link to="/quizzes" className="btn btn-outline" style={{ marginLeft: '0.75rem' }}>
+                Create Quiz
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="btn btn-primary">
+                Start Learning
+              </Link>
+              <Link to="/upload" className="btn btn-outline" style={{ marginLeft: '0.75rem' }}>
+                Upload Textbook
+              </Link>
+            </>
+          )}
+        </div>
       </section>
 
       <div className="container">
-        <div className="grid grid-3">
+        <div className="grid grid-4">
           <div className="card feature-card">
             <div className="feature-icon">📚</div>
             <h3>Upload Textbooks</h3>
@@ -37,31 +49,53 @@ const Home = ({ user, isAuthenticated }) => {
             <h3>Build Flashcards</h3>
             <p>Generate or create flashcards for efficient memorization of important terms and definitions.</p>
           </div>
+
+          <div className="card feature-card">
+            <div className="feature-icon">💰</div>
+            <h3>View Pricing</h3>
+            <p>See our free and premium plans to choose what's right for your study needs.</p>
+          </div>
         </div>
 
-        <div className="card" style={{ marginTop: '2rem' }}>
+        <div className="card">
           <h2>How It Works</h2>
-          <ol style={{ paddingLeft: '2rem', marginTop: '1rem' }}>
-            <li style={{ marginBottom: '1rem' }}>
-              <strong>Upload:</strong> Upload your textbook in PDF format
-            </li>
-            <li style={{ marginBottom: '1rem' }}>
-              <strong>Process:</strong> Our system extracts and analyzes the text content
-            </li>
-            <li style={{ marginBottom: '1rem' }}>
-              <strong>Generate:</strong> Create quizzes and flashcards from the extracted content
-            </li>
-            <li style={{ marginBottom: '1rem' }}>
-              <strong>Study:</strong> Use the generated materials to prepare for your exams
-            </li>
-          </ol>
+          <div className="steps">
+            <div className="step">
+              <div className="step-number">1</div>
+              <div className="step-content">
+                <h3>Upload</h3>
+                <p>Upload your textbook in PDF format</p>
+              </div>
+            </div>
+            <div className="step">
+              <div className="step-number">2</div>
+              <div className="step-content">
+                <h3>Process</h3>
+                <p>Our system extracts and analyzes the text content</p>
+              </div>
+            </div>
+            <div className="step">
+              <div className="step-number">3</div>
+              <div className="step-content">
+                <h3>Generate</h3>
+                <p>Create quizzes and flashcards from the extracted content</p>
+              </div>
+            </div>
+            <div className="step">
+              <div className="step-number">4</div>
+              <div className="step-content">
+                <h3>Study</h3>
+                <p>Use the generated materials to prepare for your exams</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {isAuthenticated && (
-          <div className="card" style={{ textAlign: 'center', marginTop: '2rem' }}>
+          <div className="card">
             <h2>Ready to Start Studying?</h2>
-            <p style={{ margin: '1rem 0' }}>Upload your first textbook or create a quiz from existing content.</p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <p>Upload your first textbook or create a quiz from existing content.</p>
+            <div className="action-buttons">
               <Link to="/upload" className="btn btn-primary">
                 Upload Textbook
               </Link>

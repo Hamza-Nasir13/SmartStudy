@@ -19,6 +19,21 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  plan: {
+    type: String,
+    enum: ['free', 'premium'],
+    default: 'free',
+  },
+  usage: {
+    uploads_used: {
+      type: Number,
+      default: 0,
+    },
+    flashcards_generated: {
+      type: Number,
+      default: 0,
+    },
+  },
   createdAt: {
     type: Date,
     default: Date.now,

@@ -40,9 +40,9 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="container" style={{ maxWidth: '400px', marginTop: '4rem' }}>
+    <div className="container" style={{ maxWidth: '480px', marginTop: '3rem' }}>
       <div className="card">
-        <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+        <h2 className="mb-4" style={{ textAlign: 'center' }}>
           {isLogin ? 'Welcome Back' : 'Create Account'}
         </h2>
 
@@ -50,7 +50,7 @@ const Login = ({ onLogin }) => {
 
         <form onSubmit={handleSubmit}>
           {!isLogin && (
-            <div className="form-group">
+            <div className="form-group mb-4">
               <label htmlFor="name">Full Name</label>
               <input
                 type="text"
@@ -59,11 +59,12 @@ const Login = ({ onLogin }) => {
                 value={formData.name}
                 onChange={handleChange}
                 required
+                autoComplete="name"
               />
             </div>
           )}
 
-          <div className="form-group">
+          <div className="form-group mb-4">
             <label htmlFor="email">Email</label>
             <input
               type="email"
@@ -72,10 +73,11 @@ const Login = ({ onLogin }) => {
               value={formData.email}
               onChange={handleChange}
               required
+              autoComplete="email"
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group mb-4">
             <label htmlFor="password">Password</label>
             <input
               type="password"
@@ -85,20 +87,20 @@ const Login = ({ onLogin }) => {
               onChange={handleChange}
               required
               minLength="6"
+              autoComplete="current-password"
             />
           </div>
 
           <button
             type="submit"
-            className="btn btn-primary"
-            style={{ width: '100%' }}
+            className="btn btn-primary w-100"
             disabled={loading}
           >
             {loading ? 'Please wait...' : isLogin ? 'Login' : 'Create Account'}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+        <div className="text-center mt-4">
           {isLogin ? "Don't have an account? " : 'Already have an account? '}
           <button
             onClick={() => {
@@ -107,11 +109,10 @@ const Login = ({ onLogin }) => {
               setFormData({ name: '', email: '', password: '' });
             }}
             className="btn btn-outline"
-            style={{ padding: '4px 8px', fontSize: '0.9rem' }}
           >
             {isLogin ? 'Sign Up' : 'Login'}
           </button>
-        </p>
+        </div>
       </div>
     </div>
   );

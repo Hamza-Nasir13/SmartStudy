@@ -13,10 +13,21 @@ const Upload = ({ user }) => {
   const [fetchingTextbooks, setFetchingTextbooks] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [usage, setUsage] = useState({ uploads_used: 0, flashcards_generated: 0 });
 
   useEffect(() => {
     fetchTextbooks();
+    fetchUsage();
   }, []);
+
+  const fetchUsage = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/textbooks/usage`);
+      setUsage(response.data.usage);
+    } catch (err) {
+      console.error('Error fetching usage:', err);
+    }
+  };
 
   const fetchTextbooks = async () => {
     setFetchingTextbooks(true);
@@ -109,6 +120,53 @@ const Upload = ({ user }) => {
   return (
     <div className="container" style={{ maxWidth: '900px', marginTop: '2rem' }}>
       <h2 style={{ marginBottom: '2rem' }}>📚 Upload Textbook</h2>
+
+      {/* Usage Indicator */}
+      <div style={{
+        backgroundColor: '#f0f9ff',
+        border: '1px solid #bae6fd',
+        borderRadius: '8px',
+        padding: '1rem',
+        marginBottom: '1.5rem'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontWeight: '600', color: '#1e40af' }}>Uploads Used:</span>
+          <span style={{
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            color: usage.uploads_used >= 3 ? '#dc2626' : usage.uploads_used >= 2 ? '#d97706' : '#059669'
+          }}>
+            {usage.uploads_used} / 3
+          </span>
+        </div>
+        {usage.uploads_used >= 2 && usage.uploads_used < 3 && (
+          <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#d97706' }}>
+            ⚠️ You're close to your limit! Only {3 - usage.uploads_used} upload remaining.
+          </p>
+        )}
+        {usage.uploads_used >= 3 && (
+          <>
+            <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#dc2626' }}>
+              ❌ Upload limit reached. You've used all 3 uploads.
+            </p>
+            <button
+              onClick={() => window.location.href = '/pricing'}
+              style={{
+                marginTop: '0.5rem',
+                padding: '0.5rem 1rem',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                cursor: 'pointer'
+              }}
+            >
+              Upgrade to Premium
+            </button>
+          </>
+        )}
+      </div>
 
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}

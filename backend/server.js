@@ -44,6 +44,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/textbooks', require('./routes/textbooks'));
 app.use('/api/quizzes', require('./routes/quizzes'));
 app.use('/api/flashcards', require('./routes/flashcards'));
+app.use('/api/payment', require('./routes/payment'));
 
 // Health check
 app.get('/api/health', (req, res) => {
