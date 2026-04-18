@@ -74,7 +74,7 @@ const Flashcards = ({ user }) => {
       console.log('Flashcard creation successful:', response.data);
       setSuccess('Flashcard created successfully!');
       setFormData({ ...formData, front: '', back: '', category: '' });
-      fetchFlashcards();
+      await fetchFlashcards();
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Error creating flashcard';
       console.error('Flashcard creation failed:', {
@@ -105,7 +105,7 @@ const Flashcards = ({ user }) => {
       console.log('Flashcard generation successful:', response.data);
       setSuccess(response.data.message);
       setShowForm(false);
-      fetchFlashcards();
+      await fetchFlashcards(); // Wait for flashcards to update before continuing
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Error generating flashcards';
       console.error('Flashcard generation failed:', {
@@ -304,17 +304,17 @@ const Flashcards = ({ user }) => {
           <span style={{
             fontWeight: 'bold',
             fontSize: '1.1rem',
-            color: usage.flashcards_generated >= 50 ? '#dc2626' : usage.flashcards_generated >= 40 ? '#d97706' : '#059669'
+            color: user?.plan === 'premium' ? '#059669' : usage.flashcards_generated >= 50 ? '#dc2626' : usage.flashcards_generated >= 40 ? '#d97706' : '#059669'
           }}>
-            {usage.flashcards_generated} / 50
+            {user?.plan === 'premium' ? `${usage.flashcards_generated} / Unlimited` : `${usage.flashcards_generated} / 50`}
           </span>
         </div>
-        {usage.flashcards_generated >= 40 && usage.flashcards_generated < 50 && (
+        {user?.plan !== 'premium' && usage.flashcards_generated >= 40 && usage.flashcards_generated < 50 && (
           <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#d97706' }}>
             ⚠️ You're close to your limit! Only {50 - usage.flashcards_generated} flashcards remaining.
           </p>
         )}
-        {usage.flashcards_generated >= 50 && (
+        {user?.plan !== 'premium' && usage.flashcards_generated >= 50 && (
           <>
             <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#dc2626' }}>
               ❌ Flashcard limit reached. You've generated all 50 flashcards.

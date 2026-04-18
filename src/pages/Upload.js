@@ -132,17 +132,17 @@ const Upload = ({ user }) => {
           <span style={{
             fontWeight: 'bold',
             fontSize: '1.1rem',
-            color: usage.uploads_used >= 3 ? '#dc2626' : usage.uploads_used >= 2 ? '#d97706' : '#059669'
+            color: user?.plan === 'premium' ? '#059669' : usage.uploads_used >= 3 ? '#dc2626' : usage.uploads_used >= 2 ? '#d97706' : '#059669'
           }}>
-            {usage.uploads_used} / 3
+            {user?.plan === 'premium' ? `${usage.uploads_used} / Unlimited` : `${usage.uploads_used} / 3`}
           </span>
         </div>
-        {usage.uploads_used >= 2 && usage.uploads_used < 3 && (
+        {user?.plan !== 'premium' && usage.uploads_used >= 2 && usage.uploads_used < 3 && (
           <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#d97706' }}>
             ⚠️ You're close to your limit! Only {3 - usage.uploads_used} upload remaining.
           </p>
         )}
-        {usage.uploads_used >= 3 && (
+        {user?.plan !== 'premium' && usage.uploads_used >= 3 && (
           <>
             <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#dc2626' }}>
               ❌ Upload limit reached. You've used all 3 uploads.

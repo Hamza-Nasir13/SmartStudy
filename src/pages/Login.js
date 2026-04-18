@@ -39,7 +39,7 @@ const Login = ({ onLogin }) => {
       }
       const response = await API.post(endpoint, formData);
 
-      if (isLogin || !isLogin) {
+      if (!isPasswordReset && !isResetPassword) {
         onLogin(response.data.user, response.data.token);
       } else if (isPasswordReset) {
         setResetSuccess('If your email is registered, you will receive a password reset link');

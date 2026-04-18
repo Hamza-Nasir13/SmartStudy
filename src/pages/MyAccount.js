@@ -27,11 +27,11 @@ const MyAccount = ({ user }) => {
       setLoading(true);
       const response = await API.get('/user/me');
       setProfileData({
-        name: response.data.user.name,
-        email: response.data.user.email,
-        plan: response.data.user.plan,
-        isPaid: response.data.user.isPaid,
-        createdAt: response.data.user.createdAt
+        name: response.data.name,
+        email: response.data.email,
+        plan: response.data.plan,
+        isPaid: response.data.isPaid,
+        createdAt: response.data.createdAt
       });
     } catch (err) {
       setError(
@@ -56,9 +56,9 @@ const MyAccount = ({ user }) => {
 
     try {
       const response = await API.put('/user/update-profile', { name: updateName });
-      setProfileData(prev => ({ ...prev, name: response.data.user.name }));
+      setProfileData(prev => ({ ...prev, name: response.data.name }));
       setSuccess('Profile updated successfully');
-      setUpdateName(response.data.user.name);
+      setUpdateName(response.data.name);
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -112,7 +112,7 @@ const MyAccount = ({ user }) => {
         {error && <div className="alert alert-danger">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
 
-        <div className="profile-section mb-4 style={{ marginBottom: '2rem' }}">
+        <div className="profile-section mb-4" style={{ marginBottom: '2rem' }}>
           <div className="profile-info">
             <h3>Profile Information</h3>
             <div className="d-flex justify-content-between align-items-center">
@@ -124,8 +124,8 @@ const MyAccount = ({ user }) => {
             </div>
             <p style={{ marginBottom: '0.9rem' }}><strong>Account Created:</strong> {new Date(profileData.createdAt).toLocaleDateString()}</p>
             <p style={{ marginBottom: '0.9rem' }}><strong>Account Status:</strong>
-              <span className={`badge ${profileData.isPaid ? 'bg-success' : 'bg-secondary'}`}>
-                {profileData.isPaid ? 'Paid' : 'Free'}
+              <span className={`badge ${profileData.plan === 'premium' ? 'bg-success' : 'bg-secondary'}`}>
+                {profileData.plan === 'premium' ? 'Premium' : 'Free'}
               </span>
             </p>
           </div>
@@ -133,7 +133,7 @@ const MyAccount = ({ user }) => {
 
         
 
-        <div className="section mb-4 style={{ marginBottom: '2rem' }}">
+        <div className="section mb-4" style={{ marginBottom: '2rem' }}>
           <div className="d-grid gap-2">
             <a href="/pricing">
               <button className="btn btn-primary btn-sm">
